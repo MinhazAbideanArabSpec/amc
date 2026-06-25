@@ -1,0 +1,3017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ArabSpec AMC Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --ink:        #1C2127;
+      --ink-soft:   #475569;
+      --paper:      #FAFAF9;
+      --card:       #FFFFFF;
+      --line:       #E5E1D8;
+      --accent:     #3B5773;
+      --accent-dark:#2C4257;
+      --sage:       #5B7D6B;
+      --sage-bg:    #EAF0EC;
+      --amber:      #92660F;
+      --amber-bg:   #FAF1E0;
+      --rust:       #93493F;
+      --rust-bg:    #F7EBE9;
+      --slate-bg:   #EEF0F2;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background: var(--paper);
+      min-height: 100vh;
+      color: var(--ink-soft);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    h1, h2, h3 { font-family: 'Source Serif 4', serif; color: var(--ink); font-weight: 600; }
+
+    /* ── Login ── */
+    #login-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: var(--ink);
+      background-image: radial-gradient(circle at 30% 20%, #262d36 0%, var(--ink) 60%);
+    }
+    .login-box {
+      background: var(--card); border-radius: 4px; padding: 40px 36px;
+      width: 100%; max-width: 380px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+      border-top: 3px solid var(--accent);
+    }
+    .login-box h1 {
+      font-size: 21px; margin-bottom: 4px; letter-spacing: -0.01em;
+    }
+    .login-box .login-sub {
+      font-size: 12.5px; color: #94A3B8; margin-bottom: 26px;
+      text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500;
+    }
+    label {
+      display: block; font-size: 12.5px; margin-bottom: 6px; color: var(--ink-soft);
+      font-weight: 500;
+    }
+    input, select {
+      width: 100%; padding: 10px 12px; margin-bottom: 16px;
+      border: 1px solid #D8D4C9; border-radius: 3px; font-size: 14px; font-family: inherit;
+      color: var(--ink); background: var(--card);
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+
+    button {
+      padding: 10px 18px; background: var(--accent); color: #fff;
+      border: none; border-radius: 3px; font-size: 13.5px; cursor: pointer; font-family: inherit;
+      font-weight: 600; letter-spacing: 0.01em;
+      transition: background 0.15s;
+    }
+    button:hover { background: var(--accent-dark); }
+    button.secondary { background: var(--slate-bg); color: var(--ink-soft); }
+    button.secondary:hover { background: #DFE3E7; }
+    button.danger { background: var(--card); color: var(--rust); border: 1px solid #E2CFC9; }
+    button.danger:hover { background: var(--rust-bg); }
+    button:disabled { background: #C7CCD1; cursor: not-allowed; }
+    #login-error {
+      color: var(--rust); background: var(--rust-bg); border-radius: 3px;
+      padding: 10px 12px; font-size: 13px; margin-bottom: 16px; display: none;
+    }
+
+    /* ── App shell ── */
+    #app-screen { display: none; }
+    .topbar {
+      background: var(--ink); color: #fff;
+      padding: 16px 28px; display: flex; align-items: center; justify-content: space-between;
+    }
+    .topbar h1 { color: #fff; font-size: 17px; letter-spacing: -0.01em; }
+    .topbar .who { font-size: 12.5px; color: #9AA5B1; }
+    .topbar .who b { color: #fff; font-weight: 600; }
+    .topbar .who a { color: #C9D4DE; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.25); }
+    .topbar .who a:hover { color: #fff; }
+    .content { padding: 24px 28px; max-width: 1040px; margin: 0 auto; }
+
+    /* ── Card / table ── */
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+      padding: 18px 22px; margin-bottom: 16px;
+    }
+    .card-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+    }
+    .card-header h2 { font-size: 15px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+    th {
+      text-align: left; padding: 9px 12px; font-size: 10.5px; text-transform: uppercase;
+      letter-spacing: 0.06em; color: #8A8377; font-weight: 600; border-bottom: 1px solid var(--line);
+      font-family: 'Inter', sans-serif;
+    }
+    td { padding: 13px 12px; border-bottom: 1px solid var(--line); color: var(--ink); }
+    tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: #FBFAF8; }
+
+    .badge {
+      padding: 3px 10px; border-radius: 2px; font-size: 11px; font-weight: 600;
+      letter-spacing: 0.02em; display: inline-block;
+    }
+    .badge.admin    { background: var(--slate-bg); color: var(--accent-dark); }
+    .badge.customer { background: #F1EFE8; color: #6B6354; }
+    .badge.active   { background: var(--sage-bg); color: var(--sage); }
+    .badge.inactive { background: var(--rust-bg); color: var(--rust); }
+    .badge.status-active    { background: var(--sage-bg); color: var(--sage); }
+    .badge.status-expired   { background: var(--rust-bg); color: var(--rust); }
+    .badge.status-cancelled { background: var(--slate-bg); color: #64748B; }
+
+    .row-actions { display: flex; gap: 6px; }
+    .row-actions button { padding: 5px 11px; font-size: 12px; }
+
+    /* ── Modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(28,33,39,0.55);
+      align-items: center; justify-content: center; z-index: 200;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--card); border-radius: 4px; padding: 32px;
+      width: 100%; max-width: 420px; border-top: 3px solid var(--accent);
+      max-height: 88vh; overflow-y: auto;
+    }
+    .modal-box h2 { font-size: 17px; margin-bottom: 20px; }
+    .modal-actions { display: flex; gap: 10px; margin-top: 6px; }
+    #form-error, #contract-form-error {
+      color: var(--rust); background: var(--rust-bg); border-radius: 3px;
+      padding: 10px 12px; font-size: 13px; margin-bottom: 14px; display: none;
+    }
+
+    /* ── Customer view ── */
+    .profile-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
+    .profile-row:last-child { border-bottom: none; }
+    .profile-row .lbl { font-size: 13px; color: #8A8377; }
+    .profile-row .val { font-size: 13px; font-weight: 600; color: var(--ink); }
+
+    .empty-state { text-align: center; padding: 44px; color: #9CA3AF; font-size: 13.5px; }
+
+    /* ── Nav tabs (admin) ── */
+    .nav-tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+    .nav-tab {
+      padding: 10px 4px; margin-right: 22px; font-size: 13.5px; font-weight: 600;
+      cursor: pointer; color: #9CA3AF; background: transparent; border: none;
+      border-bottom: 2px solid transparent; border-radius: 0;
+    }
+    .nav-tab.active { color: var(--ink); border-bottom-color: var(--accent); background: transparent; }
+    .nav-tab:not(.active):hover { color: var(--ink-soft); background: transparent; }
+
+    /* ── Contract card (customer view) ── */
+    .contract-block { border: 1px solid var(--line); border-radius: 4px; padding: 16px 20px; margin-bottom: 12px; }
+    .contract-block-header {
+      display: flex; justify-content: space-between; align-items: baseline;
+      margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line);
+    }
+    .contract-block-header h3 {
+      font-size: 15px; letter-spacing: 0.01em;
+    }
+    .contract-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; margin-bottom: 14px; }
+    .contract-field .lbl {
+      font-size: 10.5px; color: #8A8377; text-transform: uppercase; letter-spacing: 0.06em;
+      margin-bottom: 2px; font-weight: 600;
+    }
+    .contract-field .val { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+
+    .pdf-link-btn {
+      display: inline-flex; align-items: center; gap: 7px; font-size: 13px;
+      background: var(--accent); color: #fff; padding: 9px 16px; border-radius: 3px;
+      text-decoration: none; border: none; cursor: pointer; font-family: inherit; font-weight: 600;
+    }
+    .pdf-link-btn:hover { background: var(--accent-dark); }
+    .pdf-link-btn.disabled { background: var(--slate-bg); color: #9CA3AF; cursor: not-allowed; }
+
+    .modal-box.wide { max-width: 580px; }
+    .form-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+
+    /* ── Overview stat cards (admin) ── */
+    .stat-grid {
+      display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px;
+    }
+    .stat-card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+      padding: 16px 18px; border-left: 3px solid var(--accent);
+    }
+    .stat-card.warn { border-left-color: var(--amber); }
+    .stat-label {
+      font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em;
+      color: #8A8377; font-weight: 600; margin-bottom: 8px;
+    }
+    .stat-value { font-family: 'Source Serif 4', serif; font-size: 28px; font-weight: 600; color: var(--ink); line-height: 1; }
+    .stat-sub { font-size: 11.5px; color: #9CA3AF; margin-top: 4px; }
+
+    /* ── Overview rows (customer) ── */
+    .overview-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--line);
+    }
+    .overview-row:last-child { border-bottom: none; }
+    .overview-row-main { display: flex; align-items: baseline; gap: 12px; }
+    .overview-row-main .contract-num { font-weight: 600; color: var(--ink); font-size: 13.5px; }
+    .overview-row-main .days-left { font-size: 12.5px; color: #8A8377; }
+    .overview-row-main .days-left.urgent { color: var(--amber); font-weight: 600; }
+    .overview-link {
+      font-size: 12.5px; color: var(--accent); text-decoration: none; font-weight: 600;
+      border-bottom: 1px solid transparent;
+    }
+    .overview-link:hover { border-bottom-color: var(--accent); }
+
+    /* ── Asset health (customer dashboard) ── */
+    .asset-health-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px;
+    }
+    .health-tile {
+      border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px;
+      border-left: 3px solid var(--ink-soft);
+    }
+    .health-tile .h-count { font-family: 'Source Serif 4', serif; font-size: 24px; font-weight: 600; color: var(--ink); line-height: 1; }
+    .health-tile .h-label { font-size: 11.5px; color: #8A8377; margin-top: 4px; font-weight: 500; }
+    .health-tile.c-sage  { border-left-color: var(--sage); }
+    .health-tile.c-amber { border-left-color: var(--amber); }
+    .health-tile.c-rust  { border-left-color: var(--rust); }
+    .health-tile.c-slate { border-left-color: #94A3B8; }
+
+    /* Status badge — dynamic colors from health_statuses.color */
+    .status-pill {
+      display: inline-block; padding: 3px 10px; border-radius: 2px;
+      font-size: 11px; font-weight: 600; letter-spacing: 0.02em;
+    }
+    .status-pill.c-sage  { background: var(--sage-bg); color: var(--sage); }
+    .status-pill.c-amber { background: var(--amber-bg); color: var(--amber); }
+    .status-pill.c-rust  { background: var(--rust-bg); color: var(--rust); }
+    .status-pill.c-slate { background: var(--slate-bg); color: #64748B; }
+
+    /* ── Asset cards (customer) ── */
+    .asset-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .asset-card {
+      border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px;
+      cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s;
+    }
+    .asset-card:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .asset-card .a-name { font-weight: 600; color: var(--ink); font-size: 13.5px; margin-bottom: 4px; }
+    .asset-card .a-meta { font-size: 12px; color: #8A8377; margin-bottom: 10px; }
+
+    /* ── History timeline ── */
+    .history-item { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .history-item:last-child { border-bottom: none; }
+    .history-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: var(--ink-soft); }
+    .history-dot.c-sage  { background: var(--sage); }
+    .history-dot.c-amber { background: var(--amber); }
+    .history-dot.c-rust  { background: var(--rust); }
+    .history-dot.c-slate { background: #94A3B8; }
+    .history-body .h-status { font-weight: 600; font-size: 13px; color: var(--ink); }
+    .history-body .h-date { font-size: 11.5px; color: #9CA3AF; margin-top: 1px; }
+    .history-body .h-note { font-size: 12.5px; color: var(--ink-soft); margin-top: 3px; }
+
+    /* ── Graphical dashboard row ── */
+    .dash-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+    .dash-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .dash-card { display: flex; flex-direction: column; }
+    .dash-card .section-score-content { max-height: 260px; overflow-y: auto; }
+    @media (max-width: 900px) { .dash-row-3 { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 760px) { .dash-row { grid-template-columns: 1fr; } .dash-row-3 { grid-template-columns: 1fr; } }
+
+    /* Donut chart */
+    .donut-wrap { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+    .donut-svg { flex-shrink: 0; }
+    .donut-center-count { font-family: 'Source Serif 4', serif; font-size: 26px; font-weight: 600; fill: var(--ink); }
+    .donut-center-label { font-size: 9px; fill: #8A8377; letter-spacing: 0.04em; }
+    .donut-legend { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 140px; }
+    .legend-row { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; }
+    .legend-left { display: flex; align-items: center; gap: 8px; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+    .legend-dot.c-sage  { background: var(--sage); }
+    .legend-dot.c-amber { background: var(--amber); }
+    .legend-dot.c-rust  { background: var(--rust); }
+    .legend-dot.c-slate { background: #94A3B8; }
+    .legend-label { color: var(--ink-soft); }
+    .legend-count { font-weight: 700; color: var(--ink); }
+
+    /* Contract timeline visual */
+    .timeline-card-inner { padding-top: 4px; }
+    .timeline-contract-row { margin-bottom: 18px; }
+    .timeline-contract-row:last-child { margin-bottom: 0; }
+    .timeline-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px; }
+    .timeline-top .t-num { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .timeline-top .t-days { font-size: 11.5px; color: #8A8377; }
+    .timeline-top .t-days.urgent { color: var(--amber); font-weight: 600; }
+    .timeline-track { position: relative; height: 8px; background: var(--slate-bg); border-radius: 100px; overflow: hidden; }
+    .timeline-fill { position: absolute; left: 0; top: 0; height: 100%; border-radius: 100px; }
+    .timeline-fill.c-sage  { background: var(--sage); }
+    .timeline-fill.c-amber { background: var(--amber); }
+    .timeline-fill.c-rust  { background: var(--rust); }
+    .timeline-dates { display: flex; justify-content: space-between; font-size: 10.5px; color: #9CA3AF; margin-top: 5px; }
+
+    /* ── Visit report checklist ── */
+    .report-asset-block { border: 1px solid var(--line); border-radius: 4px; margin-bottom: 14px; overflow: hidden; }
+    .report-asset-header {
+      background: var(--ink); color: #fff; padding: 10px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .report-asset-header h3 { font-size: 13.5px; font-family: 'Source Serif 4', serif; color: #fff; }
+    .report-asset-header .a-sub { font-size: 11.5px; color: rgba(255,255,255,0.5); }
+    .report-section-block { border-bottom: 1px solid var(--line); padding: 12px 16px; }
+    .report-section-block:last-child { border-bottom: none; }
+    .report-section-title { font-size: 12px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+    .report-check-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--line); gap: 12px; }
+    .report-check-row:last-child { border-bottom: none; }
+    .report-check-label { font-size: 13px; color: var(--ink-soft); flex: 1; }
+    .result-btns { display: flex; gap: 4px; flex-shrink: 0; }
+    .result-btn {
+      padding: 4px 10px; border-radius: 3px; font-size: 11.5px; font-weight: 700;
+      cursor: pointer; border: 1.5px solid var(--line); background: var(--card); color: var(--ink-soft);
+      transition: all 0.1s; font-family: inherit;
+    }
+    .result-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .result-btn.selected-pass { background: var(--sage-bg); border-color: var(--sage); color: var(--sage); }
+    .result-btn.selected-ok   { background: var(--amber-bg); border-color: var(--amber); color: var(--amber); }
+    .result-btn.selected-fail { background: var(--rust-bg); border-color: var(--rust); color: var(--rust); }
+    .section-note-row { padding: 8px 0 4px; }
+    .section-note-row input { margin-bottom: 0; font-size: 12.5px; padding: 7px 10px; }
+
+    /* Report result badges (read-only view) */
+    .result-badge { padding: 2px 9px; border-radius: 2px; font-size: 11px; font-weight: 700; display: inline-block; }
+    .result-badge.pass { background: var(--sage-bg); color: var(--sage); }
+    .result-badge.ok   { background: var(--amber-bg); color: var(--amber); }
+    .result-badge.fail { background: var(--rust-bg); color: var(--rust); }
+    .result-badge.none { background: var(--slate-bg); color: #64748B; }
+
+    /* Report list rows */
+    .report-list-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 12px 0; border-bottom: 1px solid var(--line); gap: 12px;
+    }
+    .report-list-item:last-child { border-bottom: none; }
+    .report-list-main { display: flex; flex-direction: column; gap: 3px; }
+    .report-list-num { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+    .report-list-sub { font-size: 12px; color: #8A8377; }
+    /* ── Visit section score bars ── */
+    .section-score-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .section-score-row:last-child { border-bottom: none; }
+    .section-score-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+    .section-score-name { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+    .section-score-counts { display: flex; gap: 10px; font-size: 11.5px; }
+    .sc-pass { color: var(--sage); font-weight: 700; }
+    .sc-ok   { color: var(--amber); font-weight: 700; }
+    .sc-fail { color: var(--rust); font-weight: 700; }
+    .sc-none { color: #9CA3AF; }
+    .section-score-bar { height: 6px; border-radius: 100px; background: var(--slate-bg); display: flex; overflow: hidden; gap: 1px; }
+    .score-bar-seg { height: 100%; border-radius: 100px; }
+    .score-bar-seg.pass { background: var(--sage); }
+    .score-bar-seg.ok   { background: var(--amber); }
+    .score-bar-seg.fail { background: var(--rust); }
+
+    /* ── Per-asset visit score cards ── */
+    .visit-asset-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+    .visit-asset-card { border: 1px solid var(--line); border-radius: 4px; padding: 14px 16px; }
+    .visit-asset-card.no-report { border-style: dashed; opacity: 0.7; }
+    .va-name { font-size: 13.5px; font-weight: 700; color: var(--ink); margin-bottom: 2px; }
+    .va-sub  { font-size: 11.5px; color: #8A8377; margin-bottom: 10px; }
+    .va-date { font-size: 11px; color: #9CA3AF; margin-bottom: 8px; }
+    .va-counts { display: flex; gap: 8px; margin-bottom: 10px; }
+    .va-count { font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 2px; }
+    .va-count.pass { background: var(--sage-bg); color: var(--sage); }
+    .va-count.ok   { background: var(--amber-bg); color: var(--amber); }
+    .va-count.fail { background: var(--rust-bg); color: var(--rust); }
+    .va-bar { height: 5px; border-radius: 100px; background: var(--slate-bg); display: flex; overflow: hidden; gap: 1px; }
+
+    /* ── Status color system ── */
+    :root {
+      --c-red:    #93493F; --c-red-bg:    #F7EBE9;
+      --c-amber:  #92660F; --c-amber-bg:  #FAF1E0;
+      --c-blue:   #1E5F8E; --c-blue-bg:   #E6F0F8;
+      --c-purple: #5B21B6; --c-purple-bg: #EDE9FE;
+      --c-teal:   #0EA5A0; --c-teal-bg:   #E0F7F6;
+      --c-slate:  #475569; --c-slate-bg:  #EEF0F2;
+      --c-green:  #1A6B3A; --c-green-bg:  #E4F3EB;
+      --c-orange: #C2510E; --c-orange-bg: #FDF0E8;
+      --c-pink:   #9D2C6E; --c-pink-bg:   #F9E8F3;
+      --c-brown:  #6B3A2A; --c-brown-bg:  #F2EAE6;
+      --c-navy:   #1C2F5E; --c-navy-bg:   #E5E9F4;
+      --c-lime:   #4A7A1E; --c-lime-bg:   #EBF4E0;
+    }
+
+    /* ── Color picker ── */
+    .color-picker { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+    .color-btn {
+      display: flex; align-items: center; gap: 6px; padding: 6px 12px;
+      border: 1.5px solid var(--line); border-radius: 3px; background: var(--card);
+      font-size: 12.5px; color: var(--ink-soft); cursor: pointer; font-family: inherit;
+      transition: border-color 0.15s;
+    }
+    .color-btn:hover { border-color: var(--accent); }
+    .color-btn.selected { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+    .color-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+    /* ── Status definition cards ── */
+    .status-def-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+    .status-def-card {
+      border: 1px solid var(--line); border-radius: 4px; padding: 12px 14px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .status-def-top { display: flex; align-items: flex-start; gap: 10px; flex: 1; }
+    .status-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 3px; }
+    .status-def-name { font-size: 13px; font-weight: 600; color: var(--ink); }
+    .status-def-desc { font-size: 11.5px; color: #8A8377; margin-top: 2px; }
+    .status-def-actions { display: flex; gap: 6px; }
+    .status-def-actions button { flex: 1; padding: 5px 8px; font-size: 12px; }
+
+    /* ── Asset assignment list ── */
+    .assign-asset-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 0; border-bottom: 1px solid var(--line); gap: 12px;
+    }
+    .assign-asset-row:last-child { border-bottom: none; }
+    .assign-asset-left { display: flex; align-items: center; gap: 10px; flex: 1; }
+    .assign-asset-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+    .assign-asset-sub  { font-size: 12px; color: #8A8377; }
+    .resolved-tag { font-size: 11px; color: var(--sage); font-weight: 600; padding: 2px 8px; background: var(--sage-bg); border-radius: 2px; }
+
+    /* ── Customer status tiles ── */
+    .status-tile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+    .status-tile {
+      border: 1px solid var(--line); border-radius: 4px; padding: 16px;
+      cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s;
+      border-left: 4px solid var(--ink-soft);
+    }
+    .status-tile:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.07); }
+    .status-tile .st-count { font-family: 'Source Serif 4', serif; font-size: 28px; font-weight: 600; color: var(--ink); line-height: 1; margin-bottom: 6px; }
+    .status-tile .st-name  { font-size: 12.5px; font-weight: 600; color: var(--ink-soft); }
+    .status-tile .st-click { font-size: 11px; color: #9CA3AF; margin-top: 4px; }
+    .status-tile.c-red    { border-left-color: var(--c-red);    }
+    .status-tile.c-amber  { border-left-color: var(--c-amber);  }
+    .status-tile.c-blue   { border-left-color: var(--c-blue);   }
+    .status-tile.c-purple { border-left-color: var(--c-purple); }
+    .status-tile.c-teal   { border-left-color: var(--c-teal);   }
+    .status-tile.c-slate  { border-left-color: var(--c-slate);  }
+    .status-tile.c-green  { border-left-color: var(--c-green);  }
+    .status-tile.c-orange { border-left-color: var(--c-orange); }
+    .status-tile.c-pink   { border-left-color: var(--c-pink);   }
+    .status-tile.c-brown  { border-left-color: var(--c-brown);  }
+    .status-tile.c-navy   { border-left-color: var(--c-navy);   }
+    .status-tile.c-lime   { border-left-color: var(--c-lime);   }
+
+    /* Asset list inside status detail modal */
+    .status-asset-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+    .status-asset-row:last-child { border-bottom: none; }
+    .status-asset-row .sa-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+    .status-asset-row .sa-sub  { font-size: 12px; color: #8A8377; margin-top: 2px; }
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>ArabSpec AMC Portal</h1>
+    <div class="login-sub">Service &amp; Contract Management</div>
+    <div id="login-error"></div>
+    <label>Email</label>
+    <input type="email" id="login-email"/>
+    <label>Password</label>
+    <input type="password" id="login-password"/>
+    <button onclick="login()" style="width:100%;">Sign In</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <div class="topbar">
+    <h1>ArabSpec AMC Portal</h1>
+    <div class="who">
+      Signed in as <b id="who-name">—</b> (<span id="who-role">—</span>)
+      &nbsp;·&nbsp; <a href="#" onclick="logout(); return false;" style="color:#C9D4DE;">Sign out</a>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- ADMIN VIEW -->
+    <div id="admin-view" style="display:none;">
+
+      <div class="nav-tabs">
+        <button class="nav-tab active" id="nav-tab-overview" onclick="switchAdminTab('overview')">Overview</button>
+        <button class="nav-tab" id="nav-tab-users" onclick="switchAdminTab('users')">Users</button>
+        <button class="nav-tab" id="nav-tab-contracts" onclick="switchAdminTab('contracts')">Contracts</button>
+        <button class="nav-tab" id="nav-tab-assets" onclick="switchAdminTab('assets')">Assets</button>
+        <button class="nav-tab" id="nav-tab-reports" onclick="switchAdminTab('reports')">Visit Reports</button>
+        <button class="nav-tab" id="nav-tab-status" onclick="switchAdminTab('status')">Status</button>
+      </div>
+
+      <!-- Overview panel -->
+      <div id="admin-panel-overview">
+        <div class="stat-grid">
+          <div class="stat-card">
+            <div class="stat-label">Total Customers</div>
+            <div class="stat-value" id="stat-total-customers">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Contracts</div>
+            <div class="stat-value" id="stat-active-contracts">—</div>
+          </div>
+          <div class="stat-card warn">
+            <div class="stat-label">Expiring Soon</div>
+            <div class="stat-value" id="stat-expiring-soon">—</div>
+            <div class="stat-sub">within 60 days</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Contracts</div>
+            <div class="stat-value" id="stat-total-contracts">—</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2>Contracts Expiring Soon</h2></div>
+          <table>
+            <thead>
+              <tr><th>Contract #</th><th>Customer</th><th>End Date</th><th>Days Left</th></tr>
+            </thead>
+            <tbody id="expiring-tbody">
+              <tr><td colspan="4" class="empty-state">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Users panel -->
+      <div id="admin-panel-users" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>User Management</h2>
+            <button onclick="openCreateModal()">+ Create User</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="5" class="empty-state">Loading users…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Contracts panel -->
+      <div id="admin-panel-contracts" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Contracts</h2>
+            <button onclick="openCreateContractModal()">+ Create Contract</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Contract #</th><th>Customer</th><th>Type</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="contracts-tbody">
+              <tr><td colspan="7" class="empty-state">Loading contracts…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Assets panel -->
+      <div id="admin-panel-assets" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Assets</h2>
+            <button onclick="openCreateAssetModal()">+ Add Asset</button>
+          </div>
+          <div style="margin-bottom:14px;">
+            <select id="asset-customer-filter" onchange="loadAssetsList()" style="max-width:280px; margin-bottom:0;">
+              <option value="">All Customers</option>
+            </select>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Employee</th><th>Asset</th><th>Customer</th><th>Category</th><th>Status</th><th>Location</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="assets-tbody">
+              <tr><td colspan="7" class="empty-state">Loading assets…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Visit Reports panel -->
+      <div id="admin-panel-reports" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Visit Reports</h2>
+            <button onclick="openCreateReportModal()">+ New Visit Report</button>
+          </div>
+          <div style="margin-bottom:14px;">
+            <select id="report-customer-filter" onchange="loadReportsList()" style="max-width:280px; margin-bottom:0;">
+              <option value="">All Customers</option>
+            </select>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Visit #</th><th>Customer</th><th>Date</th><th>Engineer</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="reports-tbody">
+              <tr><td colspan="6" class="empty-state">Loading reports…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Status panel -->
+      <div id="admin-panel-status" style="display:none;">
+
+        <!-- Status definitions -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <h2>Status Definitions</h2>
+            <button onclick="openCreateStatusModal()">+ Add Status</button>
+          </div>
+          <div id="status-definitions-list">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Assign assets to a status -->
+        <div class="card">
+          <div class="card-header"><h2>Assign Assets to Status</h2></div>
+          <div class="form-2col" style="margin-bottom:14px;">
+            <div>
+              <label>Status</label>
+              <select id="assign-status-id" onchange="onAssignStatusChange()" style="margin-bottom:0;">
+                <option value="">— Select Status —</option>
+              </select>
+            </div>
+            <div>
+              <label>Customer</label>
+              <select id="assign-customer-id" onchange="onAssignCustomerChange()" style="margin-bottom:0;">
+                <option value="">— Select Customer —</option>
+              </select>
+            </div>
+          </div>
+          <div id="assign-assets-list">
+            <div class="empty-state">Select a status and customer to manage assignments.</div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- CUSTOMER VIEW -->
+    <div id="customer-view" style="display:none;">
+
+      <div class="nav-tabs">
+        <button class="nav-tab active" id="cust-tab-overview" onclick="switchCustomerTab('overview')">Overview</button>
+        <button class="nav-tab" id="cust-tab-profile" onclick="switchCustomerTab('profile')">My Profile</button>
+        <button class="nav-tab" id="cust-tab-contracts" onclick="switchCustomerTab('contracts')">My Contracts</button>
+        <button class="nav-tab" id="cust-tab-assets" onclick="switchCustomerTab('assets')">My Assets</button>
+        <button class="nav-tab" id="cust-tab-reports" onclick="switchCustomerTab('reports')">Visit Reports</button>
+      </div>
+
+      <!-- Overview panel -->
+      <div id="cust-panel-overview">
+
+        <!-- Contract overview — top of dashboard -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><h2>Overview</h2></div>
+          <div id="customer-overview-rows">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+
+        <!-- Asset status tiles -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><h2>Asset Statuses</h2></div>
+          <div id="customer-status-tiles">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+
+        <div class="dash-row dash-row-3">
+          <div class="card dash-card">
+            <div class="card-header"><h2>Asset Health</h2></div>
+            <div class="donut-wrap" id="asset-donut-wrap">
+              <div class="empty-state">Loading…</div>
+            </div>
+          </div>
+          <div class="card dash-card">
+            <div class="card-header"><h2>Contract Validity</h2></div>
+            <div id="contract-timeline-wrap">
+              <div class="empty-state">Loading…</div>
+            </div>
+          </div>
+          <div class="card dash-card">
+            <div class="card-header">
+              <h2>Visit Section Scores</h2>
+              <span id="visit-summary-meta" style="font-size:11px;color:#8A8377;"></span>
+            </div>
+            <div id="visit-section-summary">
+              <div class="empty-state">Loading…</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Per-asset visit score cards -->
+        <div class="card">
+          <div class="card-header"><h2>Asset Visit Scores</h2></div>
+          <div id="visit-asset-cards">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- My Profile panel -->
+      <div id="cust-panel-profile" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h2>My Profile</h2></div>
+          <div id="customer-profile-rows"></div>
+        </div>
+      </div>
+
+      <!-- My Contracts panel -->
+      <div id="cust-panel-contracts" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h2>My Contract(s)</h2></div>
+          <div id="customer-contracts-list">
+            <div class="empty-state">Loading contracts…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- My Assets panel -->
+      <div id="cust-panel-assets" style="display:none;">
+        <div class="card" style="margin-bottom:20px;">
+          <div class="card-header"><h2>Asset Health Breakdown</h2></div>
+          <div class="asset-health-grid" id="asset-health-summary">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h2>My Assets</h2></div>
+          <div id="customer-assets-list">
+            <div class="empty-state">Loading assets…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Reports panel -->
+      <div id="cust-panel-reports" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h2>Visit Reports</h2></div>
+          <div id="customer-reports-list">
+            <div class="empty-state">Loading reports…</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<!-- CREATE/EDIT CONTRACT MODAL -->
+<div class="modal-overlay" id="contract-modal-overlay">
+  <div class="modal-box wide">
+    <h2 id="contract-modal-title">Create Contract</h2>
+    <div id="contract-form-error"></div>
+
+    <label>Assign to Customer</label>
+    <select id="cform-customer-id"></select>
+
+    <div class="form-2col">
+      <div>
+        <label>Contract Number</label>
+        <input type="text" id="cform-number" placeholder="AMC-2026-001"/>
+      </div>
+      <div>
+        <label>Contract Type</label>
+        <input type="text" id="cform-type" placeholder="Comprehensive AMC"/>
+      </div>
+    </div>
+
+    <div class="form-2col">
+      <div>
+        <label>Start Date</label>
+        <input type="date" id="cform-start"/>
+      </div>
+      <div>
+        <label>End Date</label>
+        <input type="date" id="cform-end"/>
+      </div>
+    </div>
+
+    <label>Customer Address</label>
+    <input type="text" id="cform-address" placeholder="Full billing/site address"/>
+
+    <div class="form-2col">
+      <div>
+        <label>Prepared By</label>
+        <input type="text" id="cform-prepared-by"/>
+      </div>
+      <div>
+        <label>Reviewed By</label>
+        <input type="text" id="cform-reviewed-by"/>
+      </div>
+    </div>
+
+    <label>Accepted By</label>
+    <input type="text" id="cform-accepted-by"/>
+
+    <label>Status</label>
+    <select id="cform-status">
+      <option value="active">Active</option>
+      <option value="expired">Expired</option>
+      <option value="cancelled">Cancelled</option>
+    </select>
+
+    <label>Contract PDF <span id="cform-existing-pdf-note" style="color:#64748B;font-weight:400;"></span></label>
+    <input type="file" id="cform-pdf-file" accept="application/pdf"/>
+
+    <div class="modal-actions">
+      <button onclick="saveContract()" id="contract-save-btn">Save</button>
+      <button class="secondary" onclick="closeContractModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE/EDIT ASSET MODAL (admin) -->
+<div class="modal-overlay" id="asset-modal-overlay">
+  <div class="modal-box wide">
+    <h2 id="asset-modal-title">Add Asset</h2>
+    <div id="asset-form-error"></div>
+
+    <label>Assign to Customer</label>
+    <select id="aform-customer-id"></select>
+
+    <label>Employee Name</label>
+    <input type="text" id="aform-employee-name" placeholder="e.g. Ahmed Al-Rashid"/>
+
+    <div class="form-2col">
+      <div>
+        <label>Asset Name / Description</label>
+        <input type="text" id="aform-name" placeholder="e.g. Dell Laptop"/>
+      </div>
+      <div>
+        <label>Category</label>
+        <select id="aform-category">
+          <option value="Desktop">Desktop</option>
+          <option value="Laptop">Laptop</option>
+          <option value="Printer">Printer</option>
+          <option value="Server">Server</option>
+          <option value="Network Device">Network Device</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-2col">
+      <div>
+        <label>Serial / Model</label>
+        <input type="text" id="aform-serial" placeholder="e.g. Dell OptiPlex 7090"/>
+      </div>
+      <div>
+        <label>Location</label>
+        <input type="text" id="aform-location" placeholder="e.g. Floor 2, Office 1"/>
+      </div>
+    </div>
+
+    <label>Notes</label>
+    <input type="text" id="aform-notes" placeholder="Optional notes"/>
+
+    <div class="modal-actions">
+      <button onclick="saveAsset()" id="asset-save-btn">Save</button>
+      <button class="secondary" onclick="closeAssetModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSET DETAIL MODAL (customer, read-only + history) -->
+<div class="modal-overlay" id="asset-detail-overlay">
+  <div class="modal-box wide">
+    <h2 id="asset-detail-title">Asset Detail</h2>
+    <div id="asset-detail-body"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeAssetDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW VISIT REPORT MODAL (admin) -->
+<div class="modal-overlay" id="report-modal-overlay">
+  <div class="modal-box wide" style="max-width:720px; max-height:90vh; overflow-y:auto;">
+    <h2 id="report-modal-title">New Visit Report</h2>
+    <input type="hidden" id="rform-report-id"/>
+    <div id="report-form-error"></div>
+
+    <!-- Report header fields -->
+    <div class="form-2col">
+      <div>
+        <label>Customer</label>
+        <select id="rform-customer-id" onchange="onReportCustomerChange()"></select>
+      </div>
+      <div>
+        <label>Visit Number</label>
+        <input type="text" id="rform-visit-number" placeholder="e.g. Visit #1, Q1-2026"/>
+      </div>
+    </div>
+    <div class="form-2col">
+      <div>
+        <label>Visit Date</label>
+        <input type="date" id="rform-visit-date"/>
+      </div>
+      <div>
+        <label>Engineer Name</label>
+        <input type="text" id="rform-engineer"/>
+      </div>
+    </div>
+    <label>Overall Notes</label>
+    <input type="text" id="rform-overall-notes" placeholder="General observations for this visit"/>
+
+    <!-- Per-asset checklists — rendered dynamically -->
+    <div id="rform-assets-container" style="margin-top:18px;">
+      <div class="empty-state">Select a customer to load their assets.</div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button onclick="saveVisitReport()" id="report-save-btn">Save Report</button>
+      <button class="secondary" onclick="closeReportModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- REPORT DETAIL MODAL (admin + customer read-only) -->
+<div class="modal-overlay" id="report-detail-overlay">
+  <div class="modal-box wide" style="max-width:720px; max-height:90vh; overflow-y:auto;">
+    <h2 id="report-detail-title">Visit Report</h2>
+    <div id="report-detail-body"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeReportDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE STATUS MODAL (admin) -->
+<div class="modal-overlay" id="status-modal-overlay">
+  <div class="modal-box">
+    <h2 id="status-modal-title">Add Status</h2>
+    <input type="hidden" id="sform-id"/>
+    <div id="status-form-error"></div>
+    <label>Status Name</label>
+    <input type="text" id="sform-name" placeholder="e.g. RAM Upgrade Required"/>
+    <label>Color</label>
+    <div class="color-picker" id="sform-color-picker">
+      <button type="button" class="color-btn" data-color="red"    onclick="selectStatusColor('red')"   ><span class="color-swatch" style="background:#93493F;"></span>Red</button>
+      <button type="button" class="color-btn" data-color="amber"  onclick="selectStatusColor('amber')" ><span class="color-swatch" style="background:#92660F;"></span>Amber</button>
+      <button type="button" class="color-btn" data-color="blue"   onclick="selectStatusColor('blue')"  ><span class="color-swatch" style="background:#1E5F8E;"></span>Blue</button>
+      <button type="button" class="color-btn" data-color="purple" onclick="selectStatusColor('purple')"><span class="color-swatch" style="background:#5B21B6;"></span>Purple</button>
+      <button type="button" class="color-btn" data-color="teal"   onclick="selectStatusColor('teal')"  ><span class="color-swatch" style="background:#0EA5A0;"></span>Teal</button>
+      <button type="button" class="color-btn" data-color="slate"  onclick="selectStatusColor('slate')" ><span class="color-swatch" style="background:#475569;"></span>Slate</button>
+      <button type="button" class="color-btn" data-color="green"  onclick="selectStatusColor('green')" ><span class="color-swatch" style="background:#1A6B3A;"></span>Green</button>
+      <button type="button" class="color-btn" data-color="orange" onclick="selectStatusColor('orange')"><span class="color-swatch" style="background:#C2510E;"></span>Orange</button>
+      <button type="button" class="color-btn" data-color="pink"   onclick="selectStatusColor('pink')"  ><span class="color-swatch" style="background:#9D2C6E;"></span>Pink</button>
+      <button type="button" class="color-btn" data-color="brown"  onclick="selectStatusColor('brown')" ><span class="color-swatch" style="background:#6B3A2A;"></span>Brown</button>
+      <button type="button" class="color-btn" data-color="navy"   onclick="selectStatusColor('navy')"  ><span class="color-swatch" style="background:#1C2F5E;"></span>Navy</button>
+      <button type="button" class="color-btn" data-color="lime"   onclick="selectStatusColor('lime')"  ><span class="color-swatch" style="background:#4A7A1E;"></span>Lime</button>
+    </div>
+    <label>Description (optional)</label>
+    <input type="text" id="sform-description" placeholder="Brief description"/>
+    <div class="modal-actions">
+      <button onclick="saveStatus()">Save</button>
+      <button class="secondary" onclick="closeStatusModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS ASSET DETAIL MODAL (customer) -->
+<div class="modal-overlay" id="status-detail-overlay">
+  <div class="modal-box wide">
+    <h2 id="status-detail-title">Assets</h2>
+    <div id="status-detail-body"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="document.getElementById('status-detail-overlay').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE/EDIT MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <h2 id="modal-title">Create User</h2>
+    <div id="form-error"></div>
+
+    <div id="create-only-fields">
+      <label>Email (login)</label>
+      <input type="email" id="form-email"/>
+      <label>Temporary Password</label>
+      <input type="password" id="form-password" placeholder="Min 6 characters"/>
+    </div>
+
+    <label>Full Name / Company Name</label>
+    <input type="text" id="form-name"/>
+    <label>Role</label>
+    <select id="form-role">
+      <option value="customer">Customer</option>
+      <option value="admin">Admin</option>
+    </select>
+    <label>Contact Person</label>
+    <input type="text" id="form-contact-person"/>
+    <label>Phone</label>
+    <input type="text" id="form-phone"/>
+
+    <div class="modal-actions">
+      <button onclick="saveUser()" id="save-btn">Save</button>
+      <button class="secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = 'https://taihtmdhismfnhmboryy.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhaWh0bWRoaXNtZm5obWJvcnl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0ODgyODQsImV4cCI6MjA5NzA2NDI4NH0.DuK5pfabqbW-pWvfc5EJ8qc2-fvk0cVHIRuT1WUWS_c';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+
+  let myProfile = null;
+  let editingUserId = null; // null = create mode, otherwise editing this user's id
+
+  // ── Boot ─────────────────────────────────────────────────
+  window.addEventListener('DOMContentLoaded', async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) await afterLogin();
+  });
+
+  // ── Login / Logout ──────────────────────────────────────
+  async function login() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errEl = document.getElementById('login-error');
+    errEl.style.display = 'none';
+
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      errEl.textContent = 'Login failed: ' + error.message;
+      errEl.style.display = 'block';
+      return;
+    }
+    await afterLogin();
+  }
+
+  async function logout() {
+    await sb.auth.signOut();
+    document.getElementById('app-screen').style.display = 'none';
+    document.getElementById('admin-view').style.display = 'none';
+    document.getElementById('customer-view').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
+  }
+
+  async function afterLogin() {
+    const { data: { user } } = await sb.auth.getUser();
+    const { data: profile, error } = await sb.from('profiles').select('*').eq('id', user.id).single();
+
+    if (error || !profile) {
+      alert('Your account has no profile set up. Contact admin.');
+      await sb.auth.signOut();
+      return;
+    }
+    if (!profile.is_active) {
+      alert('Your account has been deactivated. Contact admin.');
+      await sb.auth.signOut();
+      return;
+    }
+
+    myProfile = profile;
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    document.getElementById('who-name').textContent = profile.name;
+    document.getElementById('who-role').textContent = profile.role;
+
+    if (profile.role === 'admin') {
+      document.getElementById('admin-view').style.display = 'block';
+      document.getElementById('customer-view').style.display = 'none';
+      switchAdminTab('overview');
+    } else {
+      document.getElementById('customer-view').style.display = 'block';
+      document.getElementById('admin-view').style.display = 'none';
+      switchCustomerTab('overview');
+      renderCustomerProfile(profile);
+      loadCustomerContracts(profile.id);
+      loadCustomerAssets(profile.id);
+      loadVisitDashboard(profile.id);
+      loadCustomerStatuses(profile.id);
+    }
+  }
+
+  // ── Customer: switch between Overview / Profile / Contracts / Assets tabs ──
+  function switchCustomerTab(tab) {
+    document.getElementById('cust-tab-overview').classList.toggle('active', tab === 'overview');
+    document.getElementById('cust-tab-profile').classList.toggle('active', tab === 'profile');
+    document.getElementById('cust-tab-contracts').classList.toggle('active', tab === 'contracts');
+    document.getElementById('cust-tab-assets').classList.toggle('active', tab === 'assets');
+    document.getElementById('cust-tab-reports').classList.toggle('active', tab === 'reports');
+    document.getElementById('cust-panel-overview').style.display = tab === 'overview' ? 'block' : 'none';
+    document.getElementById('cust-panel-profile').style.display = tab === 'profile' ? 'block' : 'none';
+    document.getElementById('cust-panel-contracts').style.display = tab === 'contracts' ? 'block' : 'none';
+    document.getElementById('cust-panel-assets').style.display = tab === 'assets' ? 'block' : 'none';
+    document.getElementById('cust-panel-reports').style.display = tab === 'reports' ? 'block' : 'none';
+    if (tab === 'reports') loadCustomerReports();
+  }
+
+  // ── Admin: switch between Overview / Users / Contracts / Assets tabs ──
+  function switchAdminTab(tab) {
+    ['overview','users','contracts','assets','reports','status'].forEach(t => {
+      document.getElementById(`nav-tab-${t}`)?.classList.toggle('active', t === tab);
+      document.getElementById(`admin-panel-${t}`)?.style && (document.getElementById(`admin-panel-${t}`).style.display = t === tab ? 'block' : 'none');
+    });
+    if (tab === 'overview') loadAdminOverview();
+    if (tab === 'users')    loadUsersList();
+    if (tab === 'contracts') loadContractsList();
+    if (tab === 'assets')   loadAssetsList();
+    if (tab === 'reports')  loadReportsList();
+    if (tab === 'status')   loadStatusTab();
+  }
+
+  // ── Admin: load overview stats ───────────────────────────
+  async function loadAdminOverview() {
+    const [{ data: customers }, { data: contracts }] = await Promise.all([
+      sb.from('profiles').select('id').eq('role', 'customer'),
+      sb.from('contracts').select('*, profiles!contracts_customer_id_fkey(name)')
+    ]);
+
+    const totalCustomers = customers?.length || 0;
+    const allContracts = contracts || [];
+    const totalContracts = allContracts.length;
+    const activeContracts = allContracts.filter(c => c.status === 'active');
+
+    const today = new Date();
+    const expiring = activeContracts
+      .map(c => ({ ...c, daysLeft: Math.round((new Date(c.end_date) - today) / 86400000) }))
+      .filter(c => c.daysLeft >= 0 && c.daysLeft <= 60)
+      .sort((a, b) => a.daysLeft - b.daysLeft);
+
+    document.getElementById('stat-total-customers').textContent = totalCustomers;
+    document.getElementById('stat-active-contracts').textContent = activeContracts.length;
+    document.getElementById('stat-expiring-soon').textContent = expiring.length;
+    document.getElementById('stat-total-contracts').textContent = totalContracts;
+
+    const tbody = document.getElementById('expiring-tbody');
+    if (!expiring.length) {
+      tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No contracts expiring within 60 days.</td></tr>`;
+    } else {
+      tbody.innerHTML = expiring.map(c => `
+        <tr>
+          <td style="font-weight:600;">${c.contract_number}</td>
+          <td>${c.profiles?.name || '—'}</td>
+          <td>${fmtDate(c.end_date)}</td>
+          <td>${c.daysLeft} days</td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  // ── Customer view ────────────────────────────────────────
+  function renderCustomerProfile(p) {
+    document.getElementById('customer-profile-rows').innerHTML = `
+      <div class="profile-row"><span class="lbl">Name</span><span class="val">${p.name}</span></div>
+      <div class="profile-row"><span class="lbl">Email</span><span class="val">${p.email}</span></div>
+      <div class="profile-row"><span class="lbl">Contact Person</span><span class="val">${p.contact_person || '—'}</span></div>
+      <div class="profile-row"><span class="lbl">Phone</span><span class="val">${p.phone || '—'}</span></div>
+      <div class="profile-row"><span class="lbl">Status</span><span class="val">${p.is_active ? 'Active' : 'Inactive'}</span></div>
+    `;
+  }
+
+  // ── Admin: load & render user list ──────────────────────
+  async function loadUsersList() {
+    const { data: users, error } = await sb.from('profiles').select('*').order('created_at', { ascending: false });
+    const tbody = document.getElementById('users-tbody');
+
+    if (error) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Error loading users: ${error.message}</td></tr>`;
+      return;
+    }
+    if (!users.length) {
+      tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No users yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = users.map(u => `
+      <tr>
+        <td style="font-weight:600;">${u.name}</td>
+        <td>${u.email}</td>
+        <td><span class="badge ${u.role}">${u.role}</span></td>
+        <td><span class="badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+        <td>
+          <div class="row-actions">
+            <button class="secondary" onclick="openEditModal('${u.id}')">Edit</button>
+            <button class="secondary" onclick="toggleActive('${u.id}', ${u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>
+            <button class="danger" onclick="deleteUser('${u.id}', '${u.name.replace(/'/g, "\\'")}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // ── Modal: open for create ──────────────────────────────
+  function openCreateModal() {
+    editingUserId = null;
+    document.getElementById('modal-title').textContent = 'Create User';
+    document.getElementById('create-only-fields').style.display = 'block';
+    document.getElementById('form-email').value = '';
+    document.getElementById('form-password').value = '';
+    document.getElementById('form-name').value = '';
+    document.getElementById('form-role').value = 'customer';
+    document.getElementById('form-contact-person').value = '';
+    document.getElementById('form-phone').value = '';
+    document.getElementById('form-error').style.display = 'none';
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  // ── Modal: open for edit ────────────────────────────────
+  async function openEditModal(userId) {
+    const { data: u, error } = await sb.from('profiles').select('*').eq('id', userId).single();
+    if (error || !u) { alert('Could not load user.'); return; }
+
+    editingUserId = userId;
+    document.getElementById('modal-title').textContent = 'Edit User';
+    document.getElementById('create-only-fields').style.display = 'none'; // can't change email/password here
+    document.getElementById('form-name').value = u.name;
+    document.getElementById('form-role').value = u.role;
+    document.getElementById('form-contact-person').value = u.contact_person || '';
+    document.getElementById('form-phone').value = u.phone || '';
+    document.getElementById('form-error').style.display = 'none';
+    document.getElementById('modal-overlay').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+
+  // ── Save (create or update) ─────────────────────────────
+  async function saveUser() {
+    const errEl = document.getElementById('form-error');
+    errEl.style.display = 'none';
+    const saveBtn = document.getElementById('save-btn');
+    saveBtn.disabled = true;
+
+    const name = document.getElementById('form-name').value.trim();
+    const role = document.getElementById('form-role').value;
+    const contactPerson = document.getElementById('form-contact-person').value.trim();
+    const phone = document.getElementById('form-phone').value.trim();
+
+    if (!name) {
+      errEl.textContent = 'Name is required.';
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      return;
+    }
+
+    if (editingUserId) {
+      // ── UPDATE existing profile (no auth changes) ──
+      const { error } = await sb.from('profiles')
+        .update({ name, role, contact_person: contactPerson, phone })
+        .eq('id', editingUserId);
+
+      saveBtn.disabled = false;
+      if (error) {
+        errEl.textContent = 'Update failed: ' + error.message;
+        errEl.style.display = 'block';
+        return;
+      }
+      closeModal();
+      loadUsersList();
+
+    } else {
+      // ── CREATE new user via secure Edge Function ──
+      const email = document.getElementById('form-email').value.trim();
+      const password = document.getElementById('form-password').value;
+
+      if (!email) {
+        errEl.textContent = 'Email is required.';
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        return;
+      }
+      if (!password || password.length < 6) {
+        errEl.textContent = 'Password must be at least 6 characters.';
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        return;
+      }
+
+      const { data: { session } } = await sb.auth.getSession();
+
+      try {
+        const res = await fetch(`${SUPABASE_URL}/functions/v1/create-user`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            email, password, name, role,
+            contact_person: contactPerson,
+            phone
+          }),
+        });
+        const result = await res.json();
+
+        saveBtn.disabled = false;
+
+        if (!res.ok) {
+          errEl.textContent = result.error || 'Failed to create user.';
+          errEl.style.display = 'block';
+          return;
+        }
+
+        closeModal();
+        loadUsersList();
+
+      } catch (err) {
+        saveBtn.disabled = false;
+        errEl.textContent = 'Network error: ' + err.message;
+        errEl.style.display = 'block';
+      }
+    }
+  }
+
+  // ── Toggle active/inactive ───────────────────────────────
+  async function toggleActive(userId, currentlyActive) {
+    const { error } = await sb.from('profiles')
+      .update({ is_active: !currentlyActive })
+      .eq('id', userId);
+    if (error) { alert('Failed: ' + error.message); return; }
+    loadUsersList();
+  }
+
+  // ── Delete profile ───────────────────────────────────────
+  async function deleteUser(userId, name) {
+    if (!confirm(`Delete "${name}"? This removes their profile (their login will remain unless removed separately in Supabase Auth).`)) return;
+    const { error } = await sb.from('profiles').delete().eq('id', userId);
+    if (error) { alert('Failed: ' + error.message); return; }
+    loadUsersList();
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  CONTRACTS — Admin
+  // ═══════════════════════════════════════════════════════
+  let editingContractId = null;
+
+  async function loadContractsList() {
+    const tbody = document.getElementById('contracts-tbody');
+    const { data: contracts, error } = await sb
+      .from('contracts')
+      .select('*, profiles!contracts_customer_id_fkey(name)')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Error: ${error.message}</td></tr>`;
+      return;
+    }
+    if (!contracts.length) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No contracts yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = contracts.map(c => `
+      <tr>
+        <td style="font-weight:600;">${c.contract_number}</td>
+        <td>${c.profiles?.name || '—'}</td>
+        <td>${c.contract_type}</td>
+        <td>${fmtDate(c.start_date)}</td>
+        <td>${fmtDate(c.end_date)}</td>
+        <td><span class="badge status-${c.status}">${c.status}</span></td>
+        <td>
+          <div class="row-actions">
+            <button class="secondary" onclick="openEditContractModal('${c.id}')">Edit</button>
+            <button class="danger" onclick="deleteContract('${c.id}', '${c.contract_number}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function openCreateContractModal() {
+    editingContractId = null;
+    document.getElementById('contract-modal-title').textContent = 'Create Contract';
+    document.getElementById('contract-form-error').style.display = 'none';
+    document.getElementById('cform-number').value = '';
+    document.getElementById('cform-type').value = '';
+    document.getElementById('cform-start').value = '';
+    document.getElementById('cform-end').value = '';
+    document.getElementById('cform-address').value = '';
+    document.getElementById('cform-prepared-by').value = '';
+    document.getElementById('cform-reviewed-by').value = '';
+    document.getElementById('cform-accepted-by').value = '';
+    document.getElementById('cform-status').value = 'active';
+    document.getElementById('cform-pdf-file').value = '';
+    document.getElementById('cform-existing-pdf-note').textContent = '';
+
+    await populateCustomerDropdown();
+    document.getElementById('contract-modal-overlay').classList.add('open');
+  }
+
+  async function populateCustomerDropdown(selectedId) {
+    const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+    const sel = document.getElementById('cform-customer-id');
+    sel.innerHTML = (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    if (selectedId) sel.value = selectedId;
+  }
+
+  async function openEditContractModal(contractId) {
+    const { data: c, error } = await sb.from('contracts').select('*').eq('id', contractId).single();
+    if (error || !c) { alert('Could not load contract.'); return; }
+
+    editingContractId = contractId;
+    document.getElementById('contract-modal-title').textContent = 'Edit Contract';
+    document.getElementById('contract-form-error').style.display = 'none';
+    document.getElementById('cform-number').value = c.contract_number;
+    document.getElementById('cform-type').value = c.contract_type;
+    document.getElementById('cform-start').value = c.start_date;
+    document.getElementById('cform-end').value = c.end_date;
+    document.getElementById('cform-address').value = c.customer_address || '';
+    document.getElementById('cform-prepared-by').value = c.prepared_by || '';
+    document.getElementById('cform-reviewed-by').value = c.reviewed_by || '';
+    document.getElementById('cform-accepted-by').value = c.accepted_by || '';
+    document.getElementById('cform-status').value = c.status;
+    document.getElementById('cform-pdf-file').value = '';
+    document.getElementById('cform-existing-pdf-note').textContent = c.pdf_path ? '(PDF already uploaded — choose a file only to replace it)' : '(no PDF uploaded yet)';
+
+    await populateCustomerDropdown(c.customer_id);
+    document.getElementById('contract-modal-overlay').classList.add('open');
+  }
+
+  function closeContractModal() {
+    document.getElementById('contract-modal-overlay').classList.remove('open');
+  }
+
+  async function saveContract() {
+    const errEl = document.getElementById('contract-form-error');
+    errEl.style.display = 'none';
+    const saveBtn = document.getElementById('contract-save-btn');
+    saveBtn.disabled = true;
+
+    const customer_id = document.getElementById('cform-customer-id').value;
+    const contract_number = document.getElementById('cform-number').value.trim();
+    const contract_type = document.getElementById('cform-type').value.trim();
+    const start_date = document.getElementById('cform-start').value;
+    const end_date = document.getElementById('cform-end').value;
+    const customer_address = document.getElementById('cform-address').value.trim();
+    const prepared_by = document.getElementById('cform-prepared-by').value.trim();
+    const reviewed_by = document.getElementById('cform-reviewed-by').value.trim();
+    const accepted_by = document.getElementById('cform-accepted-by').value.trim();
+    const status = document.getElementById('cform-status').value;
+    const pdfFile = document.getElementById('cform-pdf-file').files[0];
+
+    if (!customer_id || !contract_number || !contract_type || !start_date || !end_date) {
+      errEl.textContent = 'Customer, contract number, type, start and end dates are required.';
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      return;
+    }
+
+    const payload = {
+      customer_id, contract_number, contract_type, start_date, end_date,
+      customer_address, prepared_by, reviewed_by, accepted_by, status
+    };
+
+    let contractId = editingContractId;
+
+    if (contractId) {
+      const { error } = await sb.from('contracts').update(payload).eq('id', contractId);
+      if (error) {
+        errEl.textContent = 'Update failed: ' + error.message;
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        return;
+      }
+    } else {
+      const { data: inserted, error } = await sb.from('contracts').insert(payload).select().single();
+      if (error) {
+        errEl.textContent = 'Create failed: ' + error.message;
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        return;
+      }
+      contractId = inserted.id;
+    }
+
+    // Upload PDF if a new one was chosen
+    if (pdfFile) {
+      const filePath = `${customer_id}/${contract_number}-${Date.now()}.pdf`;
+      const { error: uploadError } = await sb.storage.from('contracts').upload(filePath, pdfFile, { upsert: true });
+
+      if (uploadError) {
+        errEl.textContent = 'Contract saved, but PDF upload failed: ' + uploadError.message;
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        loadContractsList();
+        return;
+      }
+
+      await sb.from('contracts').update({ pdf_path: filePath }).eq('id', contractId);
+    }
+
+    saveBtn.disabled = false;
+    closeContractModal();
+    loadContractsList();
+  }
+
+  async function deleteContract(contractId, number) {
+    if (!confirm(`Delete contract "${number}"? This cannot be undone.`)) return;
+    const { error } = await sb.from('contracts').delete().eq('id', contractId);
+    if (error) { alert('Failed: ' + error.message); return; }
+    loadContractsList();
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  CONTRACTS — Customer (read-only)
+  // ═══════════════════════════════════════════════════════
+  // ── Contract validity timeline (visual progress bars) ──────
+  function renderContractTimeline(contracts, today) {
+    const el = document.getElementById('contract-timeline-wrap');
+
+    el.innerHTML = `<div class="timeline-card-inner">` + contracts.map(c => {
+      const start = new Date(c.start_date);
+      const end = new Date(c.end_date);
+      const totalDays = Math.max(1, Math.round((end - start) / 86400000));
+      const elapsedDays = Math.round((today - start) / 86400000);
+      const daysLeft = Math.round((end - today) / 86400000);
+      const pctElapsed = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+
+      let color = 'sage';
+      if (daysLeft <= 0) color = 'rust';
+      else if (daysLeft <= 60) color = 'amber';
+
+      const daysLabel = daysLeft <= 0 ? 'Expired' : `${daysLeft} days left`;
+      const urgentClass = (daysLeft > 0 && daysLeft <= 60) ? 'urgent' : (daysLeft <= 0 ? 'urgent' : '');
+
+      return `
+        <div class="timeline-contract-row">
+          <div class="timeline-top">
+            <span class="t-num">${c.contract_number}</span>
+            <span class="t-days ${urgentClass}">${daysLabel}</span>
+          </div>
+          <div class="timeline-track">
+            <div class="timeline-fill c-${color}" style="width:${pctElapsed}%;"></div>
+          </div>
+          <div class="timeline-dates">
+            <span>${fmtDate(c.start_date)}</span>
+            <span>${fmtDate(c.end_date)}</span>
+          </div>
+        </div>
+      `;
+    }).join('') + `</div>`;
+  }
+
+  async function loadCustomerContracts(customerId) {
+    const container = document.getElementById('customer-contracts-list');
+    const overviewContainer = document.getElementById('customer-overview-rows');
+    const timelineEl = document.getElementById('contract-timeline-wrap');
+    const { data: contracts, error } = await sb
+      .from('contracts')
+      .select('*')
+      .eq('customer_id', customerId)
+      .order('start_date', { ascending: false });
+
+    if (error) {
+      container.innerHTML = `<div class="empty-state">Error loading contracts: ${error.message}</div>`;
+      overviewContainer.innerHTML = `<div class="empty-state">Error loading overview.</div>`;
+      timelineEl.innerHTML = `<div class="empty-state">Error loading chart.</div>`;
+      return;
+    }
+    if (!contracts.length) {
+      container.innerHTML = `<div class="empty-state">No contracts assigned yet.</div>`;
+      overviewContainer.innerHTML = `<div class="empty-state">No contracts assigned yet.</div>`;
+      timelineEl.innerHTML = `<div class="empty-state">No contracts to chart yet.</div>`;
+      return;
+    }
+
+    const today = new Date();
+
+    renderContractTimeline(contracts, today);
+
+    // Overview rows: quick glance at status + days remaining
+    overviewContainer.innerHTML = contracts.map(c => {
+      const daysLeft = Math.round((new Date(c.end_date) - today) / 86400000);
+      const daysLabel = daysLeft < 0 ? 'Expired' : `${daysLeft} days remaining`;
+      const urgentClass = (daysLeft >= 0 && daysLeft <= 60) ? 'urgent' : '';
+      return `
+        <div class="overview-row">
+          <div class="overview-row-main">
+            <span class="contract-num">${c.contract_number}</span>
+            <span class="badge status-${c.status}">${c.status}</span>
+            <span class="days-left ${urgentClass}">${daysLabel}</span>
+          </div>
+          <a class="overview-link" href="#contract-${c.id}">View full contract →</a>
+        </div>
+      `;
+    }).join('');
+
+    // Full contract blocks
+    container.innerHTML = contracts.map(c => `
+      <div class="contract-block" id="contract-${c.id}">
+        <div class="contract-block-header">
+          <h3>${c.contract_number}</h3>
+          <span class="badge status-${c.status}">${c.status}</span>
+        </div>
+        <div class="contract-grid">
+          <div class="contract-field"><div class="lbl">Contract Type</div><div class="val">${c.contract_type}</div></div>
+          <div class="contract-field"><div class="lbl">Customer Address</div><div class="val">${c.customer_address || '—'}</div></div>
+          <div class="contract-field"><div class="lbl">Start Date</div><div class="val">${fmtDate(c.start_date)}</div></div>
+          <div class="contract-field"><div class="lbl">End Date</div><div class="val">${fmtDate(c.end_date)}</div></div>
+          <div class="contract-field"><div class="lbl">Prepared By</div><div class="val">${c.prepared_by || '—'}</div></div>
+          <div class="contract-field"><div class="lbl">Reviewed By</div><div class="val">${c.reviewed_by || '—'}</div></div>
+          <div class="contract-field"><div class="lbl">Accepted By</div><div class="val">${c.accepted_by || '—'}</div></div>
+        </div>
+        ${c.pdf_path
+          ? `<button class="pdf-link-btn" onclick="downloadContractPdf('${c.pdf_path}')">⬇ Download Contract PDF</button>`
+          : `<button class="pdf-link-btn disabled" disabled>No PDF uploaded yet</button>`
+        }
+      </div>
+    `).join('');
+  }
+
+  async function downloadContractPdf(pdfPath) {
+    const { data, error } = await sb.storage.from('contracts').createSignedUrl(pdfPath, 60);
+    if (error || !data?.signedUrl) {
+      alert('Could not generate download link: ' + (error?.message || 'unknown error'));
+      return;
+    }
+    window.open(data.signedUrl, '_blank');
+  }
+
+  // ── Shared helper ─────────────────────────────────────────
+  function fmtDate(d) {
+    if (!d) return '—';
+    return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  ASSETS — Admin
+  // ═══════════════════════════════════════════════════════
+  let editingAssetId = null;
+  let allHealthStatuses = []; // cached: [{id, category, label, color, sort_order}]
+
+  async function loadHealthStatuses() {
+    if (allHealthStatuses.length) return allHealthStatuses;
+    const { data } = await sb.from('health_statuses').select('*').order('category').order('sort_order');
+    allHealthStatuses = data || [];
+    return allHealthStatuses;
+  }
+
+  async function populateAssetCustomerFilter() {
+    const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+    const sel = document.getElementById('asset-customer-filter');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All Customers</option>' +
+      (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    sel.value = current;
+  }
+
+  async function loadAssetsList() {
+    await populateAssetCustomerFilter();
+    await loadHealthStatuses();
+
+    const filterId = document.getElementById('asset-customer-filter').value;
+    const tbody = document.getElementById('assets-tbody');
+
+    if (!filterId) {
+      tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Select a customer to view their assets.</td></tr>`;
+      return;
+    }
+
+    let query = sb.from('assets')
+      .select('*, profiles!assets_customer_id_fkey(name), health_statuses(label, color)')
+      .eq('customer_id', filterId)
+      .order('created_at', { ascending: false });
+
+    const { data: assets, error } = await query;
+
+    if (error) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error: ${error.message}</td></tr>`;
+      return;
+    }
+    if (!assets.length) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No assets yet.</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = assets.map(a => `
+      <tr>
+        <td style="font-weight:600;">${a.employee_name || '<span style="color:#9CA3AF;">—</span>'}</td>
+        <td style="color:var(--ink-soft);">${a.name}</td>
+        <td>${a.profiles?.name || '—'}</td>
+        <td>${a.category}</td>
+        <td>${a.health_statuses ? `<span class="status-pill c-${a.health_statuses.color}">${a.health_statuses.label}</span>` : '<span style="color:#9CA3AF;">Not set</span>'}</td>
+        <td>${a.location || '—'}</td>
+        <td>
+          <div class="row-actions">
+            <button class="secondary" onclick="openEditAssetModal('${a.id}')">Edit</button>
+            <button class="danger" onclick="deleteAsset('${a.id}', '${(a.employee_name || a.name).replace(/'/g, "\\'")}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  async function populateAssetCustomerDropdown(selectedId) {
+    const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+    const sel = document.getElementById('aform-customer-id');
+    sel.innerHTML = (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    if (selectedId) sel.value = selectedId;
+  }
+
+  async function populateStatusDropdown(category, selectedId) {
+    await loadHealthStatuses();
+    const options = allHealthStatuses.filter(s => s.category === category);
+    const sel = document.getElementById('aform-status-id');
+    sel.innerHTML = '<option value="">— No status set —</option>' +
+      options.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+    if (selectedId) sel.value = selectedId;
+  }
+
+  async function openCreateAssetModal() {
+    editingAssetId = null;
+    document.getElementById('asset-modal-title').textContent = 'Add Asset';
+    document.getElementById('asset-form-error').style.display = 'none';
+    document.getElementById('aform-employee-name').value = '';
+    document.getElementById('aform-name').value = '';
+    document.getElementById('aform-category').value = 'Desktop';
+    document.getElementById('aform-serial').value = '';
+    document.getElementById('aform-location').value = '';
+    document.getElementById('aform-notes').value = '';
+
+    await populateAssetCustomerDropdown();
+    document.getElementById('asset-modal-overlay').classList.add('open');
+  }
+
+  async function openEditAssetModal(assetId) {
+    const { data: a, error } = await sb.from('assets').select('*').eq('id', assetId).single();
+    if (error || !a) { alert('Could not load asset.'); return; }
+
+    editingAssetId = assetId;
+    document.getElementById('asset-modal-title').textContent = 'Edit Asset';
+    document.getElementById('asset-form-error').style.display = 'none';
+    document.getElementById('aform-employee-name').value = a.employee_name || '';
+    document.getElementById('aform-name').value = a.name;
+    document.getElementById('aform-category').value = a.category;
+    document.getElementById('aform-serial').value = a.serial_model || '';
+    document.getElementById('aform-location').value = a.location || '';
+    document.getElementById('aform-notes').value = a.notes || '';
+
+    await populateAssetCustomerDropdown(a.customer_id);
+    document.getElementById('asset-modal-overlay').classList.add('open');
+  }
+
+  function closeAssetModal() {
+    document.getElementById('asset-modal-overlay').classList.remove('open');
+  }
+
+  async function saveAsset() {
+    const errEl = document.getElementById('asset-form-error');
+    errEl.style.display = 'none';
+    const saveBtn = document.getElementById('asset-save-btn');
+    saveBtn.disabled = true;
+
+    const customer_id = document.getElementById('aform-customer-id').value;
+    const employee_name = document.getElementById('aform-employee-name').value.trim();
+    const name = document.getElementById('aform-name').value.trim();
+    const category = document.getElementById('aform-category').value;
+    const serial_model = document.getElementById('aform-serial').value.trim();
+    const location = document.getElementById('aform-location').value.trim();
+    const notes = document.getElementById('aform-notes').value.trim();
+
+    if (!customer_id || !name || !category) {
+      errEl.textContent = 'Customer, asset name, and category are required.';
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      return;
+    }
+
+    const payload = { customer_id, employee_name, name, category, serial_model, location, notes };
+    let assetId = editingAssetId;
+
+    if (assetId) {
+      const { error } = await sb.from('assets').update(payload).eq('id', assetId);
+      if (error) {
+        errEl.textContent = 'Update failed: ' + error.message;
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        return;
+      }
+    } else {
+      const { data: inserted, error } = await sb.from('assets').insert(payload).select().single();
+      if (error) {
+        errEl.textContent = 'Create failed: ' + error.message;
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        return;
+      }
+      assetId = inserted.id;
+    }
+
+    saveBtn.disabled = false;
+    closeAssetModal();
+    loadAssetsList();
+  }
+
+  async function deleteAsset(assetId, name) {
+    if (!confirm(`Delete asset "${name}"? This cannot be undone.`)) return;
+    const { error } = await sb.from('assets').delete().eq('id', assetId);
+    if (error) { alert('Failed: ' + error.message); return; }
+    loadAssetsList();
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  ASSETS — Customer (dashboard + detail)
+  // ═══════════════════════════════════════════════════════
+  let customerAssetsCache = [];
+
+  // ── Donut chart for asset health (pure SVG, no library) ────
+  const COLOR_HEX = { sage: '#5B7D6B', amber: '#92660F', rust: '#93493F', slate: '#94A3B8' };
+
+  function renderAssetDonut(counts, total) {
+    const donutEl = document.getElementById('asset-donut-wrap');
+    const R = 52, CX = 60, CY = 60, STROKE = 16;
+    const CIRC = 2 * Math.PI * R;
+
+    let offset = 0;
+    const segments = Object.entries(counts).map(([label, { count, color }]) => {
+      const fraction = count / total;
+      const dash = fraction * CIRC;
+      const seg = {
+        label, count, color,
+        dasharray: `${dash} ${CIRC - dash}`,
+        dashoffset: -offset
+      };
+      offset += dash;
+      return seg;
+    });
+
+    const circles = segments.map(s => `
+      <circle cx="${CX}" cy="${CY}" r="${R}" fill="none"
+        stroke="${COLOR_HEX[s.color] || '#94A3B8'}" stroke-width="${STROKE}"
+        stroke-dasharray="${s.dasharray}" stroke-dashoffset="${s.dashoffset}"
+        transform="rotate(-90 ${CX} ${CY})" stroke-linecap="butt"/>
+    `).join('');
+
+    const legendRows = segments.map(s => `
+      <div class="legend-row">
+        <div class="legend-left">
+          <span class="legend-dot c-${s.color}"></span>
+          <span class="legend-label">${s.label}</span>
+        </div>
+        <span class="legend-count">${s.count}</span>
+      </div>
+    `).join('');
+
+    donutEl.innerHTML = `
+      <svg class="donut-svg" width="120" height="120" viewBox="0 0 120 120">
+        <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="#EEF0F2" stroke-width="${STROKE}"/>
+        ${circles}
+        <text x="${CX}" y="${CY - 2}" text-anchor="middle" class="donut-center-count">${total}</text>
+        <text x="${CX}" y="${CY + 14}" text-anchor="middle" class="donut-center-label">ASSETS</text>
+      </svg>
+      <div class="donut-legend">${legendRows}</div>
+    `;
+  }
+
+  async function loadCustomerAssets(customerId) {
+    const { data: assets, error } = await sb
+      .from('assets')
+      .select('*, health_statuses(label, color)')
+      .eq('customer_id', customerId)
+      .order('category')
+      .order('name');
+
+    const summaryEl = document.getElementById('asset-health-summary');
+    const listEl = document.getElementById('customer-assets-list');
+    const donutEl = document.getElementById('asset-donut-wrap');
+
+    if (error) {
+      summaryEl.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+      listEl.innerHTML = `<div class="empty-state">Error loading assets.</div>`;
+      donutEl.innerHTML = `<div class="empty-state">Error loading chart.</div>`;
+      return;
+    }
+    if (!assets.length) {
+      summaryEl.innerHTML = `<div class="empty-state">No assets registered yet.</div>`;
+      listEl.innerHTML = `<div class="empty-state">No assets registered yet.</div>`;
+      donutEl.innerHTML = `<div class="empty-state">No assets to chart yet.</div>`;
+      return;
+    }
+
+    customerAssetsCache = assets;
+
+    // Health summary — count per status label+color
+    const counts = {};
+    assets.forEach(a => {
+      const key = a.health_statuses ? a.health_statuses.label : 'Not Set';
+      const color = a.health_statuses ? a.health_statuses.color : 'slate';
+      if (!counts[key]) counts[key] = { count: 0, color };
+      counts[key].count++;
+    });
+
+    renderAssetDonut(counts, assets.length);
+
+    summaryEl.innerHTML = Object.entries(counts).map(([label, { count, color }]) => `
+      <div class="health-tile c-${color}">
+        <div class="h-count">${count}</div>
+        <div class="h-label">${label}</div>
+      </div>
+    `).join('');
+
+    // Asset cards
+    listEl.innerHTML = `<div class="asset-card-grid">` + assets.map(a => `
+      <div class="asset-card" onclick="openAssetDetail('${a.id}')">
+        <div class="a-name">${a.employee_name || a.name}</div>
+        <div class="a-meta">${a.name} · ${a.category}${a.location ? ' · ' + a.location : ''}</div>
+        ${a.health_statuses
+          ? `<span class="status-pill c-${a.health_statuses.color}">${a.health_statuses.label}</span>`
+          : `<span class="status-pill c-slate">Not set</span>`
+        }
+      </div>
+    `).join('') + `</div>`;
+  }
+
+  async function openAssetDetail(assetId) {
+    const asset = customerAssetsCache.find(a => a.id === assetId);
+    if (!asset) return;
+
+    document.getElementById('asset-detail-title').textContent = asset.employee_name || asset.name;
+
+    const { data: history } = await sb
+      .from('asset_status_history')
+      .select('*, health_statuses(label, color)')
+      .eq('asset_id', assetId)
+      .order('changed_at', { ascending: false });
+
+    const historyHtml = (history && history.length)
+      ? history.map(h => `
+          <div class="history-item">
+            <div class="history-dot c-${h.health_statuses?.color || 'slate'}"></div>
+            <div class="history-body">
+              <div class="h-status">${h.health_statuses?.label || 'Unknown'}</div>
+              <div class="h-date">${new Date(h.changed_at).toLocaleString('en-GB', { day:'numeric', month:'short', year:'numeric', hour:'2-digit', minute:'2-digit' })}${h.changed_by ? ' · ' + h.changed_by : ''}</div>
+              ${h.note ? `<div class="h-note">${h.note}</div>` : ''}
+            </div>
+          </div>
+        `).join('')
+      : '<div class="empty-state">No status history yet.</div>';
+
+    document.getElementById('asset-detail-body').innerHTML = `
+      <div class="contract-grid" style="margin-bottom:18px;">
+        <div class="contract-field"><div class="lbl">Employee</div><div class="val">${asset.employee_name || '—'}</div></div>
+        <div class="contract-field"><div class="lbl">Asset / Description</div><div class="val">${asset.name}</div></div>
+        <div class="contract-field"><div class="lbl">Category</div><div class="val">${asset.category}</div></div>
+        <div class="contract-field"><div class="lbl">Current Status</div><div class="val">${asset.health_statuses ? `<span class="status-pill c-${asset.health_statuses.color}">${asset.health_statuses.label}</span>` : 'Not set'}</div></div>
+        <div class="contract-field"><div class="lbl">Serial / Model</div><div class="val">${asset.serial_model || '—'}</div></div>
+        <div class="contract-field"><div class="lbl">Location</div><div class="val">${asset.location || '—'}</div></div>
+      </div>
+      ${asset.notes ? `<div style="margin-bottom:18px;"><div class="contract-field"><div class="lbl">Notes</div><div class="val" style="font-weight:400;">${asset.notes}</div></div></div>` : ''}
+      <div class="card-header" style="margin-top:4px;"><h2 style="font-size:14px;">Status History</h2></div>
+      ${historyHtml}
+    `;
+
+    document.getElementById('asset-detail-overlay').classList.add('open');
+  }
+
+  function closeAssetDetail() {
+    document.getElementById('asset-detail-overlay').classList.remove('open');
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  VISIT REPORTS — Checklist definition
+  // ═══════════════════════════════════════════════════════
+  const CHECKLIST = [
+    { section: 'System Health Check', checks: [
+      'Restart PC and observe boot time performance',
+      'Check disk space (C Drive must have >20% free)',
+      'Monitor RAM usage via Task Manager',
+      'Check CPU utilization and identify abnormal usage',
+      'Verify Windows activation status'
+    ]},
+    { section: 'Performance Optimization', checks: [
+      'Disable unnecessary startup programs',
+      'Clear temp files (%temp%, temp, prefetch)',
+      'Run Disk Cleanup utility',
+      'Optimize browser (remove extensions, clear cache)',
+      'Restart system after optimization'
+    ]},
+    { section: 'Security Check', checks: [
+      'Ensure antivirus is installed and updated',
+      'Run quick malware scan',
+      'Check Windows Firewall status',
+      'Install pending Windows updates'
+    ]},
+    { section: 'Backup Verification', checks: [
+      'Confirm user data is backed up',
+      'Verify server/NAS backup status and last run'
+    ]},
+    { section: 'Network Check', checks: [
+      'Run internet speed test',
+      'Check LAN/WiFi connectivity stability',
+      'Test printer and shared folder access'
+    ]},
+    { section: 'Hardware Inspection', checks: [
+      'Check for overheating and fan noise',
+      'Inspect cables and connections',
+      'Verify UPS condition'
+    ]},
+    { section: 'Compliance Check', checks: [
+      'Verify TPM 2.0 availability',
+      'Check Windows version',
+      'Identify any pirated software'
+    ]}
+  ];
+
+  // In-memory state for the report being built
+  let reportState = {}; // { assetId: { section: { subcheck: result } } }
+  let reportSectionNotes = {}; // { assetId: { section: note } }
+  let reportCustomerAssets = [];
+
+  // ═══════════════════════════════════════════════════════
+  //  VISIT REPORTS — Admin list
+  // ═══════════════════════════════════════════════════════
+  async function loadReportsList() {
+    const tbody = document.getElementById('reports-tbody');
+
+    // Populate customer filter dropdown
+    const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+    const filterSel = document.getElementById('report-customer-filter');
+    const currentFilter = filterSel.value;
+    filterSel.innerHTML = '<option value="">All Customers</option>' +
+      (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    filterSel.value = currentFilter;
+
+    let query = sb.from('visit_reports')
+      .select('*, profiles!visit_reports_customer_id_fkey(name)')
+      .order('visit_date', { ascending: false });
+    if (currentFilter) query = query.eq('customer_id', currentFilter);
+
+    const { data: reports, error } = await query;
+
+    if (error) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error: ${error.message}</td></tr>`; return; }
+    if (!reports.length) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No visit reports yet.</td></tr>`; return; }
+
+    tbody.innerHTML = reports.map(r => `
+      <tr>
+        <td style="font-weight:600;">${r.visit_number}</td>
+        <td>${r.profiles?.name || '—'}</td>
+        <td>${fmtDate(r.visit_date)}</td>
+        <td>${r.engineer_name}</td>
+        <td><span class="badge ${r.status === 'completed' ? 'active-badge' : 'pending-badge'}">${r.status}</span></td>
+        <td>
+          <div class="row-actions">
+            <button class="secondary" onclick="openEditReportModal('${r.id}')">Edit</button>
+            <button class="secondary" onclick="openReportDetail('${r.id}')">View</button>
+            <button class="danger" onclick="deleteReport('${r.id}', '${r.visit_number.replace(/'/g,"\\'")}')">Delete</button>
+          </div>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  VISIT REPORTS — Create modal
+  // ═══════════════════════════════════════════════════════
+  async function openCreateReportModal() {
+    reportState = {};
+    reportSectionNotes = {};
+    reportCustomerAssets = [];
+
+    document.getElementById('report-modal-title').textContent = 'New Visit Report';
+    document.getElementById('rform-report-id').value = '';
+    document.getElementById('report-form-error').style.display = 'none';
+    document.getElementById('rform-visit-number').value = '';
+    document.getElementById('rform-visit-date').value = new Date().toISOString().split('T')[0];
+    document.getElementById('rform-engineer').value = myProfile?.name || '';
+    document.getElementById('rform-overall-notes').value = '';
+    document.getElementById('rform-assets-container').innerHTML = '<div class="empty-state">Select a customer to load their assets.</div>';
+
+    // Populate customer dropdown
+    const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+    const sel = document.getElementById('rform-customer-id');
+    sel.innerHTML = '<option value="">— Select Customer —</option>' +
+      (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+    document.getElementById('report-modal-overlay').classList.add('open');
+  }
+
+  async function openEditReportModal(reportId) {
+    reportState = {};
+    reportSectionNotes = {};
+    reportCustomerAssets = [];
+
+    // Fetch the report header
+    const { data: report } = await sb.from('visit_reports').select('*').eq('id', reportId).single();
+    if (!report) { alert('Could not load report.'); return; }
+
+    document.getElementById('report-modal-title').textContent = 'Edit Visit Report';
+    document.getElementById('rform-report-id').value = reportId;
+    document.getElementById('report-form-error').style.display = 'none';
+    document.getElementById('rform-visit-number').value = report.visit_number;
+    document.getElementById('rform-visit-date').value = report.visit_date;
+    document.getElementById('rform-engineer').value = report.engineer_name;
+    document.getElementById('rform-overall-notes').value = report.overall_notes || '';
+    document.getElementById('rform-assets-container').innerHTML = '<div class="empty-state">Loading assets…</div>';
+
+    // Populate customer dropdown and lock to this customer
+    const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+    const sel = document.getElementById('rform-customer-id');
+    sel.innerHTML = '<option value="">— Select Customer —</option>' +
+      (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    sel.value = report.customer_id;
+
+    // Fetch all assets for this customer
+    const { data: assets } = await sb.from('assets')
+      .select('id, name, employee_name, category')
+      .eq('customer_id', report.customer_id)
+      .order('employee_name');
+
+    reportCustomerAssets = assets || [];
+
+    // Fetch existing visit_report_assets + checks for this report
+    const { data: vras } = await sb.from('visit_report_assets')
+      .select('*, visit_report_checks(*)')
+      .eq('visit_report_id', reportId);
+
+    // Build a map of assetId → { sectionNotes, checks }
+    const existingMap = {};
+    (vras || []).forEach(vra => {
+      existingMap[vra.asset_id] = {
+        sectionNotes: vra.section_notes || {},
+        checks: vra.visit_report_checks || []
+      };
+    });
+
+    // Initialize reportState and reportSectionNotes from existing data
+    assets.forEach(a => {
+      const existing = existingMap[a.id];
+      reportState[a.id] = {};
+      reportSectionNotes[a.id] = existing?.sectionNotes || {};
+      CHECKLIST.forEach(s => {
+        reportState[a.id][s.section] = {};
+        s.checks.forEach(c => {
+          const match = existing?.checks.find(ch => ch.section === s.section && ch.sub_check === c);
+          reportState[a.id][s.section][c] = match?.result || null;
+        });
+      });
+    });
+
+    document.getElementById('report-modal-overlay').classList.add('open');
+
+    // Render asset selection with previously included assets pre-ticked
+    const previouslyIncludedIds = new Set(Object.keys(existingMap));
+    renderEditAssetSelection(assets, previouslyIncludedIds, existingMap);
+  }
+
+  function renderEditAssetSelection(assets, previouslyIncludedIds, existingMap) {
+    const container = document.getElementById('rform-assets-container');
+    container.innerHTML = `
+      <div style="margin-bottom:12px;">
+        <div class="report-section-title" style="margin-bottom:10px;">Select assets visited this time</div>
+        ${assets.map(a => `
+          <div class="report-check-row" style="padding:8px 0;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;">
+              <input type="checkbox" id="asset-chk-${a.id}"
+                ${previouslyIncludedIds.has(a.id) ? 'checked' : ''}
+                onchange="onAssetSelectionChange()"
+                style="width:16px;height:16px;cursor:pointer;margin-bottom:0;flex-shrink:0;"/>
+              <span style="font-size:13.5px;font-weight:600;color:var(--ink);">${a.employee_name || a.name}</span>
+              <span style="font-size:12px;color:#8A8377;">${a.name} · ${a.category}</span>
+            </label>
+          </div>
+        `).join('')}
+      </div>
+      <div id="rform-checklists"></div>
+    `;
+
+    // Render checklists for previously included assets and restore PASS/OK/FAIL
+    const selectedAssets = assets.filter(a => previouslyIncludedIds.has(a.id));
+    if (selectedAssets.length) {
+      renderChecklistForm(selectedAssets);
+      // Restore button states after DOM is updated
+      setTimeout(() => {
+        selectedAssets.forEach(a => {
+          CHECKLIST.forEach(s => {
+            s.checks.forEach(c => {
+              const result = reportState[a.id]?.[s.section]?.[c];
+              if (result) {
+                const key = slugify(a.id + s.section + c);
+                ['pass','ok','fail'].forEach(r => {
+                  const btn = document.getElementById(`btn-${key}-${r}`);
+                  if (btn) btn.className = 'result-btn' + (r === result ? ` selected-${r}` : '');
+                });
+              }
+            });
+            // Restore section notes
+            const noteEl = document.getElementById(`note-${slugify(a.id + s.section)}`);
+            if (noteEl && reportSectionNotes[a.id]?.[s.section]) {
+              noteEl.value = reportSectionNotes[a.id][s.section];
+            }
+          });
+        });
+      }, 50);
+    }
+  }
+
+  async function onReportCustomerChange() {
+    const customerId = document.getElementById('rform-customer-id').value;
+    const container = document.getElementById('rform-assets-container');
+    if (!customerId) {
+      container.innerHTML = '<div class="empty-state">Select a customer to load their assets.</div>';
+      return;
+    }
+
+    container.innerHTML = '<div class="empty-state">Loading assets…</div>';
+    const { data: assets } = await sb.from('assets')
+      .select('id, name, employee_name, category')
+      .eq('customer_id', customerId)
+      .order('employee_name');
+
+    reportCustomerAssets = assets || [];
+    reportState = {};
+    reportSectionNotes = {};
+
+    if (!assets || !assets.length) {
+      container.innerHTML = '<div class="empty-state">This customer has no assets registered.</div>';
+      return;
+    }
+
+    // Step 1: Show asset selection checkboxes
+    container.innerHTML = `
+      <div style="margin-bottom:12px;">
+        <div class="report-section-title" style="margin-bottom:10px;">Select assets visited this time</div>
+        ${assets.map(a => `
+          <div class="report-check-row" style="padding:8px 0;">
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;">
+              <input type="checkbox" id="asset-chk-${a.id}"
+                onchange="onAssetSelectionChange()"
+                style="width:16px;height:16px;cursor:pointer;margin-bottom:0;flex-shrink:0;"/>
+              <span style="font-size:13.5px;font-weight:600;color:var(--ink);">${a.employee_name || a.name}</span>
+              <span style="font-size:12px;color:#8A8377;">${a.name} · ${a.category}</span>
+            </label>
+          </div>
+        `).join('')}
+      </div>
+      <div id="rform-checklists"></div>
+    `;
+  }
+
+  function onAssetSelectionChange() {
+    const checklistsContainer = document.getElementById('rform-checklists');
+    if (!checklistsContainer) return;
+
+    const selectedAssets = reportCustomerAssets.filter(a =>
+      document.getElementById(`asset-chk-${a.id}`)?.checked
+    );
+
+    // Initialize state for newly selected assets
+    selectedAssets.forEach(a => {
+      if (!reportState[a.id]) {
+        reportState[a.id] = {};
+        reportSectionNotes[a.id] = {};
+        CHECKLIST.forEach(s => {
+          reportState[a.id][s.section] = {};
+          s.checks.forEach(c => { reportState[a.id][s.section][c] = null; });
+        });
+      }
+    });
+
+    if (!selectedAssets.length) {
+      checklistsContainer.innerHTML = '';
+      return;
+    }
+
+    renderChecklistForm(selectedAssets);
+  }
+
+  function renderChecklistForm(assets) {
+    const container = document.getElementById('rform-checklists');
+    if (!container) return;
+    container.innerHTML = assets.map(a => `
+      <div class="report-asset-block" style="margin-top:6px;">
+        <div class="report-asset-header">
+          <h3>${a.employee_name || a.name}</h3>
+          <span class="a-sub">${a.name} · ${a.category}</span>
+        </div>
+        ${CHECKLIST.map(s => `
+          <div class="report-section-block">
+            <div class="report-section-title">${s.section}</div>
+            ${s.checks.map(c => `
+              <div class="report-check-row">
+                <span class="report-check-label">${c}</span>
+                <div class="result-btns">
+                  <button class="result-btn" id="btn-${slugify(a.id+s.section+c)}-pass"
+                    onclick="setResult('${a.id}','${s.section}','${c.replace(/'/g,"\\'")}','pass')">PASS</button>
+                  <button class="result-btn" id="btn-${slugify(a.id+s.section+c)}-ok"
+                    onclick="setResult('${a.id}','${s.section}','${c.replace(/'/g,"\\'")}','ok')">OK</button>
+                  <button class="result-btn" id="btn-${slugify(a.id+s.section+c)}-fail"
+                    onclick="setResult('${a.id}','${s.section}','${c.replace(/'/g,"\\'")}','fail')">FAIL</button>
+                </div>
+              </div>
+            `).join('')}
+            <div class="section-note-row">
+              <input type="text" placeholder="Section note (optional)"
+                id="note-${slugify(a.id+s.section)}"
+                onchange="setSectionNote('${a.id}','${s.section}',this.value)"/>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  }
+
+  function slugify(str) {
+    // Simple deterministic hash to avoid collisions from truncation
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      hash = ((hash << 5) - hash) + str.charCodeAt(i);
+      hash |= 0;
+    }
+    return 'k' + Math.abs(hash).toString(36);
+  }
+
+  function setResult(assetId, section, check, result) {
+    if (!reportState[assetId]) reportState[assetId] = {};
+    if (!reportState[assetId][section]) reportState[assetId][section] = {};
+    reportState[assetId][section][check] = result;
+
+    // Update button styles
+    const key = slugify(assetId + section + check);
+    ['pass','ok','fail'].forEach(r => {
+      const btn = document.getElementById(`btn-${key}-${r}`);
+      if (btn) {
+        btn.className = 'result-btn' + (r === result ? ` selected-${r}` : '');
+      }
+    });
+  }
+
+  function setSectionNote(assetId, section, value) {
+    if (!reportSectionNotes[assetId]) reportSectionNotes[assetId] = {};
+    reportSectionNotes[assetId][section] = value;
+  }
+
+  function closeReportModal() {
+    document.getElementById('report-modal-overlay').classList.remove('open');
+  }
+
+  async function saveVisitReport() {
+    const errEl = document.getElementById('report-form-error');
+    errEl.style.display = 'none';
+    const saveBtn = document.getElementById('report-save-btn');
+    saveBtn.disabled = true;
+
+    const existingReportId = document.getElementById('rform-report-id').value;
+    const customer_id    = document.getElementById('rform-customer-id').value;
+    const visit_number   = document.getElementById('rform-visit-number').value.trim();
+    const visit_date     = document.getElementById('rform-visit-date').value;
+    const engineer_name  = document.getElementById('rform-engineer').value.trim();
+    const overall_notes  = document.getElementById('rform-overall-notes').value.trim();
+
+    if (!customer_id || !visit_number || !visit_date || !engineer_name) {
+      errEl.textContent = 'Customer, visit number, date and engineer name are required.';
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      return;
+    }
+    if (!reportCustomerAssets.length) {
+      errEl.textContent = 'No assets loaded for this customer.';
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      return;
+    }
+
+    const selectedAssets = reportCustomerAssets.filter(a =>
+      document.getElementById(`asset-chk-${a.id}`)?.checked
+    );
+
+    if (!selectedAssets.length) {
+      errEl.textContent = 'Please select at least one asset to include in this report.';
+      errEl.style.display = 'block';
+      saveBtn.disabled = false;
+      return;
+    }
+
+    let reportId = existingReportId;
+
+    if (existingReportId) {
+      // ── EDIT MODE: update header, delete old asset/check records ──
+      const { error: updateError } = await sb.from('visit_reports')
+        .update({ customer_id, visit_number, visit_date, engineer_name, overall_notes, status: 'completed' })
+        .eq('id', existingReportId);
+
+      if (updateError) {
+        errEl.textContent = 'Update failed: ' + updateError.message;
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        return;
+      }
+
+      // Delete existing asset rows (cascades to checks automatically)
+      await sb.from('visit_report_assets').delete().eq('visit_report_id', existingReportId);
+
+    } else {
+      // ── CREATE MODE: insert new report ──
+      const { data: report, error: rError } = await sb.from('visit_reports')
+        .insert({ customer_id, visit_number, visit_date, engineer_name, overall_notes, status: 'completed' })
+        .select().single();
+
+      if (rError) {
+        errEl.textContent = 'Failed to save report: ' + rError.message;
+        errEl.style.display = 'block';
+        saveBtn.disabled = false;
+        return;
+      }
+      reportId = report.id;
+    }
+
+    // Insert asset rows + checks (same for both create and edit)
+    for (const asset of selectedAssets) {
+      const section_notes = reportSectionNotes[asset.id] || {};
+      const allResults = Object.values(reportState[asset.id] || {})
+        .flatMap(s => Object.values(s)).filter(Boolean);
+      const overall_status = allResults.includes('fail') ? 'fail'
+        : allResults.includes('ok') ? 'ok'
+        : allResults.length ? 'pass' : null;
+
+      const { data: vra, error: vraError } = await sb.from('visit_report_assets')
+        .insert({ visit_report_id: reportId, asset_id: asset.id, overall_status, section_notes })
+        .select().single();
+
+      if (vraError || !vra) continue;
+
+      const checks = [];
+      CHECKLIST.forEach(s => {
+        s.checks.forEach(c => {
+          const result = reportState[asset.id]?.[s.section]?.[c] || null;
+          checks.push({ visit_report_asset_id: vra.id, section: s.section, sub_check: c, result });
+        });
+      });
+      await sb.from('visit_report_checks').insert(checks);
+    }
+
+    saveBtn.disabled = false;
+    closeReportModal();
+    loadReportsList();
+  }
+
+  async function deleteReport(reportId, name) {
+    if (!confirm(`Delete report "${name}"? This cannot be undone.`)) return;
+    const { error } = await sb.from('visit_reports').delete().eq('id', reportId);
+    if (error) { alert('Failed: ' + error.message); return; }
+    loadReportsList();
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  VISIT REPORTS — Detail view (admin + customer)
+  // ═══════════════════════════════════════════════════════
+  async function openReportDetail(reportId) {
+    document.getElementById('report-detail-body').innerHTML = '<div class="empty-state">Loading…</div>';
+    document.getElementById('report-detail-overlay').classList.add('open');
+
+    // Fetch report header
+    const { data: report } = await sb.from('visit_reports')
+      .select('*, profiles!visit_reports_customer_id_fkey(name)')
+      .eq('id', reportId).single();
+
+    // Fetch all assets in this report with their checks
+    const { data: vras } = await sb.from('visit_report_assets')
+      .select('*, assets(name, employee_name, category)')
+      .eq('visit_report_id', reportId);
+
+    const { data: allChecks } = await sb.from('visit_report_checks')
+      .select('*')
+      .in('visit_report_asset_id', (vras || []).map(v => v.id));
+
+    document.getElementById('report-detail-title').textContent = `${report.visit_number} — ${fmtDate(report.visit_date)}`;
+
+    // Header summary
+    let html = `
+      <div class="contract-grid" style="margin-bottom:18px;">
+        <div class="contract-field"><div class="lbl">Customer</div><div class="val">${report.profiles?.name || '—'}</div></div>
+        <div class="contract-field"><div class="lbl">Visit Number</div><div class="val">${report.visit_number}</div></div>
+        <div class="contract-field"><div class="lbl">Visit Date</div><div class="val">${fmtDate(report.visit_date)}</div></div>
+        <div class="contract-field"><div class="lbl">Engineer</div><div class="val">${report.engineer_name}</div></div>
+      </div>
+      ${report.overall_notes ? `<div style="margin-bottom:16px;"><div class="contract-field"><div class="lbl">Overall Notes</div><div class="val" style="font-weight:400;">${report.overall_notes}</div></div></div>` : ''}
+    `;
+
+    // Per-asset sections
+    (vras || []).forEach(vra => {
+      const asset = vra.assets;
+      const assetChecks = (allChecks || []).filter(c => c.visit_report_asset_id === vra.id);
+      const sectionNotes = vra.section_notes || {};
+
+      const overallBadge = vra.overall_status
+        ? `<span class="result-badge ${vra.overall_status}">${vra.overall_status.toUpperCase()}</span>`
+        : `<span class="result-badge none">—</span>`;
+
+      html += `
+        <div class="report-asset-block" style="margin-bottom:14px;">
+          <div class="report-asset-header" style="display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <h3>${asset?.employee_name || asset?.name || '—'}</h3>
+              <span class="a-sub">${asset?.name || ''} · ${asset?.category || ''}</span>
+            </div>
+            ${overallBadge}
+          </div>
+          ${CHECKLIST.map(s => {
+            const sectionChecks = assetChecks.filter(c => c.section === s.section);
+            const note = sectionNotes[s.section];
+            return `
+              <div class="report-section-block">
+                <div class="report-section-title">${s.section}</div>
+                ${s.checks.map(c => {
+                  const match = sectionChecks.find(sc => sc.sub_check === c);
+                  const result = match?.result || null;
+                  return `
+                    <div class="report-check-row">
+                      <span class="report-check-label">${c}</span>
+                      ${result
+                        ? `<span class="result-badge ${result}">${result.toUpperCase()}</span>`
+                        : `<span class="result-badge none">—</span>`
+                      }
+                    </div>
+                  `;
+                }).join('')}
+                ${note ? `<div style="padding:6px 0 2px; font-size:12px; color:var(--ink-soft); font-style:italic;">Note: ${note}</div>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    });
+
+    document.getElementById('report-detail-body').innerHTML = html;
+  }
+
+  function closeReportDetail() {
+    document.getElementById('report-detail-overlay').classList.remove('open');
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  VISIT REPORTS — Customer view
+  // ═══════════════════════════════════════════════════════
+  // ═══════════════════════════════════════════════════════
+  //  VISIT DASHBOARD — Section scores + per-asset cards
+  // ═══════════════════════════════════════════════════════
+  async function loadVisitDashboard(customerId) {
+    const sectionEl = document.getElementById('visit-section-summary');
+    const cardsEl   = document.getElementById('visit-asset-cards');
+    const metaEl    = document.getElementById('visit-summary-meta');
+
+    // Fetch all assets for this customer
+    const { data: assets } = await sb.from('assets')
+      .select('id, name, employee_name, category')
+      .eq('customer_id', customerId)
+      .order('employee_name');
+
+    if (!assets || !assets.length) {
+      sectionEl.innerHTML = '<div class="empty-state">No assets registered yet.</div>';
+      cardsEl.innerHTML   = '<div class="empty-state">No assets registered yet.</div>';
+      return;
+    }
+
+    // For each asset, fetch its most recent visit_report_asset entry + checks
+    const assetResults = await Promise.all(assets.map(async a => {
+      // Get most recent visit_report_asset for this asset
+      const { data: vras } = await sb.from('visit_report_assets')
+        .select('id, overall_status, visit_report_id, visit_reports(visit_number, visit_date)')
+        .eq('asset_id', a.id)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      const vra = vras?.[0] || null;
+      if (!vra) return { asset: a, vra: null, checks: [] };
+
+      const { data: checks } = await sb.from('visit_report_checks')
+        .select('section, sub_check, result')
+        .eq('visit_report_asset_id', vra.id);
+
+      return { asset: a, vra, checks: checks || [] };
+    }));
+
+    // ── Section scores (aggregate across all assets' most recent visits) ──
+    const SECTION_NAMES = CHECKLIST.map(s => s.section);
+    const sectionTotals = {}; // { sectionName: { pass, ok, fail, total } }
+    SECTION_NAMES.forEach(s => { sectionTotals[s] = { pass: 0, ok: 0, fail: 0, total: 0 }; });
+
+    let grandPass = 0, grandOk = 0, grandFail = 0;
+
+    assetResults.forEach(({ checks }) => {
+      checks.forEach(c => {
+        if (!c.result || !sectionTotals[c.section]) return;
+        sectionTotals[c.section][c.result]++;
+        sectionTotals[c.section].total++;
+        if (c.result === 'pass') grandPass++;
+        else if (c.result === 'ok') grandOk++;
+        else if (c.result === 'fail') grandFail++;
+      });
+    });
+
+    const grandTotal = grandPass + grandOk + grandFail;
+    metaEl.textContent = grandTotal
+      ? `${grandPass + grandOk + grandFail} total checks across all assets`
+      : '';
+
+    // Render section score bars
+    if (grandTotal === 0) {
+      sectionEl.innerHTML = '<div class="empty-state">No visit report data yet.</div>';
+    } else {
+      sectionEl.innerHTML = `<div class="section-score-content">` + `
+        <div class="section-score-row" style="margin-bottom:4px;">
+          <div class="section-score-top">
+            <span class="section-score-name" style="color:var(--accent);">Overall Total</span>
+            <div class="section-score-counts">
+              <span class="sc-pass">${grandPass} Pass</span>
+              <span class="sc-ok">${grandOk} OK</span>
+              <span class="sc-fail">${grandFail} Fail</span>
+            </div>
+          </div>
+          <div class="section-score-bar">
+            ${grandPass ? `<div class="score-bar-seg pass" style="width:${(grandPass/grandTotal*100).toFixed(1)}%"></div>` : ''}
+            ${grandOk   ? `<div class="score-bar-seg ok"   style="width:${(grandOk/grandTotal*100).toFixed(1)}%"></div>` : ''}
+            ${grandFail ? `<div class="score-bar-seg fail" style="width:${(grandFail/grandTotal*100).toFixed(1)}%"></div>` : ''}
+          </div>
+        </div>
+        <div style="height:1px;background:var(--line);margin:10px 0 4px;"></div>
+        ${SECTION_NAMES.map(s => {
+          const t = sectionTotals[s];
+          if (t.total === 0) return `
+            <div class="section-score-row">
+              <div class="section-score-top">
+                <span class="section-score-name">${s}</span>
+                <span class="sc-none">No data</span>
+              </div>
+            </div>`;
+          return `
+            <div class="section-score-row">
+              <div class="section-score-top">
+                <span class="section-score-name">${s}</span>
+                <div class="section-score-counts">
+                  <span class="sc-pass">${t.pass} Pass</span>
+                  <span class="sc-ok">${t.ok} OK</span>
+                  <span class="sc-fail">${t.fail} Fail</span>
+                </div>
+              </div>
+              <div class="section-score-bar">
+                ${t.pass ? `<div class="score-bar-seg pass" style="width:${(t.pass/t.total*100).toFixed(1)}%"></div>` : ''}
+                ${t.ok   ? `<div class="score-bar-seg ok"   style="width:${(t.ok/t.total*100).toFixed(1)}%"></div>` : ''}
+                ${t.fail ? `<div class="score-bar-seg fail" style="width:${(t.fail/t.total*100).toFixed(1)}%"></div>` : ''}
+              </div>
+            </div>`;
+        }).join('')}
+      ` + `</div>`;
+    }
+
+    // ── Per-asset score cards ──
+    cardsEl.innerHTML = `<div class="visit-asset-grid">` +
+      assetResults.map(({ asset: a, vra, checks }) => {
+        if (!vra) return `
+          <div class="visit-asset-card no-report">
+            <div class="va-name">${a.employee_name || a.name}</div>
+            <div class="va-sub">${a.name} · ${a.category}</div>
+            <div class="va-date" style="font-style:italic;">No visit report yet</div>
+          </div>`;
+
+        const pass = checks.filter(c => c.result === 'pass').length;
+        const ok   = checks.filter(c => c.result === 'ok').length;
+        const fail = checks.filter(c => c.result === 'fail').length;
+        const total = pass + ok + fail;
+        const visitDate = vra.visit_reports?.visit_date ? fmtDate(vra.visit_reports.visit_date) : '—';
+        const visitNum  = vra.visit_reports?.visit_number || '—';
+
+        return `
+          <div class="visit-asset-card">
+            <div class="va-name">${a.employee_name || a.name}</div>
+            <div class="va-sub">${a.name} · ${a.category}</div>
+            <div class="va-date">${visitNum} · ${visitDate}</div>
+            <div class="va-counts">
+              <span class="va-count pass">${pass} Pass</span>
+              <span class="va-count ok">${ok} OK</span>
+              <span class="va-count fail">${fail} Fail</span>
+            </div>
+            ${total > 0 ? `
+            <div class="va-bar">
+              ${pass ? `<div class="score-bar-seg pass" style="width:${(pass/total*100).toFixed(1)}%"></div>` : ''}
+              ${ok   ? `<div class="score-bar-seg ok"   style="width:${(ok/total*100).toFixed(1)}%"></div>` : ''}
+              ${fail ? `<div class="score-bar-seg fail" style="width:${(fail/total*100).toFixed(1)}%"></div>` : ''}
+            </div>` : ''}
+          </div>`;
+      }).join('') + `</div>`;
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  STATUS — Admin
+  // ═══════════════════════════════════════════════════════
+  let selectedStatusColor = 'slate';
+  let allStatusDefs = [];
+
+  const STATUS_COLORS = {
+    red:    { hex: '#93493F', bg: '#F7EBE9' },
+    amber:  { hex: '#92660F', bg: '#FAF1E0' },
+    blue:   { hex: '#1E5F8E', bg: '#E6F0F8' },
+    purple: { hex: '#5B21B6', bg: '#EDE9FE' },
+    teal:   { hex: '#0EA5A0', bg: '#E0F7F6' },
+    slate:  { hex: '#475569', bg: '#EEF0F2' },
+    green:  { hex: '#1A6B3A', bg: '#E4F3EB' },
+    orange: { hex: '#C2510E', bg: '#FDF0E8' },
+    pink:   { hex: '#9D2C6E', bg: '#F9E8F3' },
+    brown:  { hex: '#6B3A2A', bg: '#F2EAE6' },
+    navy:   { hex: '#1C2F5E', bg: '#E5E9F4' },
+    lime:   { hex: '#4A7A1E', bg: '#EBF4E0' }
+  };
+
+  async function loadStatusTab() {
+    await loadStatusDefinitions();
+    // Populate dropdowns for assignment section
+    const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+    const custSel = document.getElementById('assign-customer-id');
+    custSel.innerHTML = '<option value="">— Select Customer —</option>' +
+      (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    const statusSel = document.getElementById('assign-status-id');
+    statusSel.innerHTML = '<option value="">— Select Status —</option>' +
+      allStatusDefs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  }
+
+  async function loadStatusDefinitions() {
+    const { data: statuses, error } = await sb.from('asset_statuses').select('*').order('name');
+    allStatusDefs = statuses || [];
+    const el = document.getElementById('status-definitions-list');
+    if (error) { el.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`; return; }
+    if (!statuses.length) { el.innerHTML = `<div class="empty-state">No statuses yet. Create one above.</div>`; return; }
+    el.innerHTML = `<div class="status-def-grid">` + statuses.map(s => `
+      <div class="status-def-card">
+        <div class="status-def-top">
+          <div class="status-color-dot" style="background:${STATUS_COLORS[s.color]?.hex || '#475569'};"></div>
+          <div>
+            <div class="status-def-name">${s.name}</div>
+            ${s.description ? `<div class="status-def-desc">${s.description}</div>` : ''}
+          </div>
+        </div>
+        <div class="status-def-actions">
+          <button class="secondary" onclick="openEditStatusModal('${s.id}','${s.name.replace(/'/g,"\\'")}','${s.color}','${(s.description||'').replace(/'/g,"\\'")}')">Edit</button>
+          <button class="danger" onclick="deleteStatusDef('${s.id}','${s.name.replace(/'/g,"\\'")}')">Delete</button>
+        </div>
+      </div>
+    `).join('') + `</div>`;
+  }
+
+  function selectStatusColor(color) {
+    selectedStatusColor = color;
+    document.querySelectorAll('.color-btn').forEach(b => b.classList.toggle('selected', b.dataset.color === color));
+  }
+
+  function openCreateStatusModal() {
+    selectedStatusColor = 'slate';
+    document.getElementById('sform-id').value = '';
+    document.getElementById('sform-name').value = '';
+    document.getElementById('sform-description').value = '';
+    document.getElementById('status-form-error').style.display = 'none';
+    document.getElementById('status-modal-title').textContent = 'Add Status';
+    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('selected'));
+    document.querySelector('.color-btn[data-color="slate"]').classList.add('selected');
+    document.getElementById('status-modal-overlay').classList.add('open');
+  }
+
+  function openEditStatusModal(id, name, color, description) {
+    selectedStatusColor = color;
+    document.getElementById('sform-id').value = id;
+    document.getElementById('sform-name').value = name;
+    document.getElementById('sform-description').value = description;
+    document.getElementById('status-form-error').style.display = 'none';
+    document.getElementById('status-modal-title').textContent = 'Edit Status';
+    document.querySelectorAll('.color-btn').forEach(b => b.classList.toggle('selected', b.dataset.color === color));
+    document.getElementById('status-modal-overlay').classList.add('open');
+  }
+
+  function closeStatusModal() {
+    document.getElementById('status-modal-overlay').classList.remove('open');
+  }
+
+  async function saveStatus() {
+    const errEl = document.getElementById('status-form-error');
+    errEl.style.display = 'none';
+    const id   = document.getElementById('sform-id').value;
+    const name = document.getElementById('sform-name').value.trim();
+    const description = document.getElementById('sform-description').value.trim();
+    if (!name) { errEl.textContent = 'Status name is required.'; errEl.style.display = 'block'; return; }
+
+    if (id) {
+      // Edit mode
+      const { error } = await sb.from('asset_statuses')
+        .update({ name, color: selectedStatusColor, description: description || null })
+        .eq('id', id);
+      if (error) { errEl.textContent = 'Failed: ' + error.message; errEl.style.display = 'block'; return; }
+    } else {
+      // Create mode
+      const { error } = await sb.from('asset_statuses')
+        .insert({ name, color: selectedStatusColor, description: description || null });
+      if (error) { errEl.textContent = 'Failed: ' + error.message; errEl.style.display = 'block'; return; }
+    }
+
+    closeStatusModal();
+    await loadStatusDefinitions();
+    // Refresh status dropdown in assignment section
+    document.getElementById('assign-status-id').innerHTML = '<option value="">— Select Status —</option>' +
+      allStatusDefs.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  }
+
+  async function deleteStatusDef(id, name) {
+    if (!confirm(`Delete status "${name}"? All assignments to this status will also be removed.`)) return;
+    const { error } = await sb.from('asset_statuses').delete().eq('id', id);
+    if (error) { alert('Failed: ' + error.message); return; }
+    await loadStatusDefinitions();
+  }
+
+  async function onAssignStatusChange() { await loadAssignmentList(); }
+  async function onAssignCustomerChange() { await loadAssignmentList(); }
+
+  async function loadAssignmentList() {
+    const statusId   = document.getElementById('assign-status-id').value;
+    const customerId = document.getElementById('assign-customer-id').value;
+    const el = document.getElementById('assign-assets-list');
+
+    if (!statusId || !customerId) {
+      el.innerHTML = '<div class="empty-state">Select a status and customer to manage assignments.</div>';
+      return;
+    }
+
+    // Fetch all assets for this customer
+    const { data: assets } = await sb.from('assets')
+      .select('id, name, employee_name, category')
+      .eq('customer_id', customerId).order('employee_name');
+
+    // Fetch existing assignments for this status + customer
+    const { data: assignments } = await sb.from('asset_status_assignments')
+      .select('*').eq('status_id', statusId).eq('customer_id', customerId);
+
+    if (!assets || !assets.length) {
+      el.innerHTML = '<div class="empty-state">This customer has no assets.</div>';
+      return;
+    }
+
+    const assignMap = {};
+    (assignments || []).forEach(a => { assignMap[a.asset_id] = a; });
+
+    el.innerHTML = assets.map(a => {
+      const asgn = assignMap[a.id];
+      const isAssigned = !!asgn && !asgn.is_resolved;
+      const isResolved = !!asgn && asgn.is_resolved;
+      return `
+        <div class="assign-asset-row">
+          <div class="assign-asset-left">
+            <input type="checkbox" ${isAssigned ? 'checked' : ''} ${isResolved ? 'disabled' : ''}
+              onchange="toggleAssetAssignment('${a.id}','${statusId}','${customerId}',this.checked)"
+              style="width:16px;height:16px;cursor:pointer;margin-bottom:0;flex-shrink:0;"/>
+            <div>
+              <div class="assign-asset-name">${a.employee_name || a.name}</div>
+              <div class="assign-asset-sub">${a.name} · ${a.category}</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex:1;justify-content:flex-end;">
+            ${(isAssigned || isResolved) ? `
+              <input type="text" id="note-${a.id}"
+                placeholder="Add note…"
+                value="${(asgn?.notes || '').replace(/"/g,'&quot;')}"
+                ${isResolved ? 'disabled' : ''}
+                onblur="saveAssignmentNote('${asgn.id}', this.value)"
+                style="width:200px;margin-bottom:0;font-size:12.5px;padding:6px 10px;"/>
+            ` : ''}
+            ${isResolved ? `<span class="resolved-tag">Resolved</span>` : ''}
+            ${asgn ? `<button class="secondary" style="padding:4px 10px;font-size:12px;"
+              onclick="toggleResolve('${asgn.id}',${asgn.is_resolved},'${statusId}','${customerId}')">
+              ${isResolved ? 'Reopen' : 'Resolve'}</button>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  async function toggleAssetAssignment(assetId, statusId, customerId, checked) {
+    if (checked) {
+      // Check if a resolved record exists — if so, reopen it
+      const { data: existing } = await sb.from('asset_status_assignments')
+        .select('id, is_resolved').eq('asset_id', assetId).eq('status_id', statusId).single();
+      if (existing) {
+        await sb.from('asset_status_assignments').update({ is_resolved: false, resolved_at: null }).eq('id', existing.id);
+      } else {
+        await sb.from('asset_status_assignments').insert({ asset_id: assetId, status_id: statusId, customer_id: customerId });
+      }
+    } else {
+      await sb.from('asset_status_assignments').delete().eq('asset_id', assetId).eq('status_id', statusId);
+    }
+    await loadAssignmentList();
+  }
+
+  async function toggleResolve(assignmentId, currentlyResolved, statusId, customerId) {
+    if (currentlyResolved) {
+      await sb.from('asset_status_assignments').update({ is_resolved: false, resolved_at: null }).eq('id', assignmentId);
+    } else {
+      await sb.from('asset_status_assignments').update({ is_resolved: true, resolved_at: new Date().toISOString() }).eq('id', assignmentId);
+    }
+    await loadAssignmentList();
+  }
+
+  async function saveAssignmentNote(assignmentId, note) {
+    await sb.from('asset_status_assignments').update({ notes: note || null }).eq('id', assignmentId);
+  }
+
+  // ═══════════════════════════════════════════════════════
+  //  STATUS — Customer dashboard tiles
+  // ═══════════════════════════════════════════════════════
+  async function loadCustomerStatuses(customerId) {
+    const el = document.getElementById('customer-status-tiles');
+
+    // Get all active (unresolved) assignments for this customer with status info + asset info + notes
+    const { data: assignments, error } = await sb.from('asset_status_assignments')
+      .select('*, asset_statuses(id, name, color), assets(name, employee_name, category)')
+      .eq('customer_id', customerId)
+      .eq('is_resolved', false);
+
+    if (error) { el.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`; return; }
+    if (!assignments || !assignments.length) {
+      el.innerHTML = `<div class="empty-state">No active statuses assigned to your assets.</div>`;
+      return;
+    }
+
+    // Group by status
+    const groups = {};
+    assignments.forEach(a => {
+      const sid = a.asset_statuses?.id;
+      if (!sid) return;
+      if (!groups[sid]) groups[sid] = { status: a.asset_statuses, assets: [] };
+      groups[sid].assets.push({ ...a.assets, notes: a.notes });
+    });
+
+    el.innerHTML = `<div class="status-tile-grid">` +
+      Object.values(groups).map(g => `
+        <div class="status-tile c-${g.status.color}" onclick="openStatusDetail('${g.status.id}','${g.status.name.replace(/'/g,"\\'")}')">
+          <div class="st-count">${g.assets.length}</div>
+          <div class="st-name">${g.status.name}</div>
+          <div class="st-click">Click to view assets →</div>
+        </div>
+      `).join('') + `</div>`;
+
+    // Store for detail modal
+    window._statusGroups = groups;
+  }
+
+  function openStatusDetail(statusId, statusName) {
+    const group = window._statusGroups?.[statusId];
+    if (!group) return;
+    document.getElementById('status-detail-title').textContent = statusName;
+    document.getElementById('status-detail-body').innerHTML = group.assets.length
+      ? group.assets.map(a => `
+          <div class="status-asset-row" style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+            <div>
+              <div class="sa-name">${a?.employee_name || a?.name || '—'}</div>
+              <div class="sa-sub">${a?.name || ''} · ${a?.category || ''}</div>
+            </div>
+            ${a?.notes ? `<div style="font-size:12.5px;color:var(--ink-soft);text-align:right;max-width:55%;line-height:1.4;">${a.notes}</div>` : ''}
+          </div>`).join('')
+      : '<div class="empty-state">No assets.</div>';
+    document.getElementById('status-detail-overlay').classList.add('open');
+  }
+
+  async function loadCustomerReports() {
+
+    const container = document.getElementById('customer-reports-list');
+    const { data: { user } } = await sb.auth.getUser();
+    const { data: reports, error } = await sb.from('visit_reports')
+      .select('*')
+      .eq('customer_id', user.id)
+      .order('visit_date', { ascending: false });
+
+    if (error) { container.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`; return; }
+    if (!reports.length) { container.innerHTML = `<div class="empty-state">No visit reports yet.</div>`; return; }
+
+    container.innerHTML = reports.map(r => `
+      <div class="report-list-item">
+        <div class="report-list-main">
+          <span class="report-list-num">${r.visit_number}</span>
+          <span class="report-list-sub">${fmtDate(r.visit_date)} · ${r.engineer_name}</span>
+        </div>
+        <button class="secondary" style="padding:6px 14px;font-size:12.5px;" onclick="openReportDetail('${r.id}')">View Report</button>
+      </div>
+    `).join('');
+  }
+
+  // Enter key on login
+  ['login-email','login-password'].forEach(id =>
+    document.getElementById(id).addEventListener('keydown', e => { if (e.key==='Enter') login(); })
+  );
+</script>
+</body>
+</html>

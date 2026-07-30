@@ -1,0 +1,808 @@
+// visits.js — visit reports (section-level checklist, no sub-checks)
+
+// ── End User checklist (7 sections) ─────────────────────────
+var CHECKLIST = [
+  'System Health Check',
+  'Performance Optimization',
+  'Security Check',
+  'Backup Verification',
+  'Network Check',
+  'Hardware Inspection',
+  'Compliance Check'
+];
+
+// ── Data Center checklist (8 sections) ──────────────────────
+var DC_CHECKLIST = [
+  'Power & UPS Check',
+  'Cooling & Environmental',
+  'Server Hardware Inspection',
+  'Network Infrastructure',
+  'Storage & Backup Verification',
+  'Security & Access Control',
+  'Virtualization & OS Health',
+  'Compliance & Documentation'
+];
+
+// Returns the correct checklist based on report type
+function getChecklist(reportType) {
+  return reportType === 'data_center' ? DC_CHECKLIST : CHECKLIST;
+}
+
+// In-memory state: { assetId: { sectionName: result } }
+var reportState = {};
+// Notes: { assetId: { sectionName: note } }
+var reportSectionNotes = {};
+var reportCustomerAssets = [];
+// Issue tags selected in this visit: { assetId: { section: [tagId, ...] } }
+var reportIssueTags = {};
+var allVisitStatuses = [];
+// Current report type (set when modal opens or type changes)
+var currentReportType = 'end_user';
+
+// ═══════════════════════════════════════════════════════
+//  Admin list
+// ═══════════════════════════════════════════════════════
+async function loadReportsList() {
+  const tbody = document.getElementById('reports-tbody');
+
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
+  const filterSel = document.getElementById('report-customer-filter');
+  const currentFilter = filterSel.value;
+  filterSel.innerHTML = '<option value="">All Customers</option>' +
+    (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  filterSel.value = currentFilter;
+
+  let query = sb.from('visit_reports')
+    .select('*, profiles!visit_reports_customer_id_fkey(name), visit_report_assets(assets(name, employee_name))')
+    .order('visit_date', { ascending: false });
+  if (currentFilter) query = query.eq('customer_id', currentFilter);
+
+  const { data: reports, error } = await query;
+  if (error) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error: ${error.message}</td></tr>`; return; }
+  if (!reports.length) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No visit reports yet.</td></tr>`; return; }
+
+  tbody.innerHTML = reports.map(r => {
+    const assetNames = (r.visit_report_assets || [])
+      .map(vra => vra.assets?.employee_name || vra.assets?.name)
+      .filter(Boolean).join(', ');
+    const typeLabel = r.report_type === 'data_center'
+      ? `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:#EEF2FF;color:#3730A3;">DC</span>`
+      : `<span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;background:#F0FDF4;color:#166534;">EU</span>`;
+    return `
+    <tr>
+      <td style="font-weight:600;">${r.visit_number} ${typeLabel}</td>
+      <td>${r.profiles?.name || '—'}</td>
+      <td>${fmtDate(r.visit_date)}</td>
+      <td>${r.engineer_name}</td>
+      <td style="font-size:12px;color:var(--accent);font-weight:600;">${assetNames || '—'}</td>
+      <td><span class="badge ${r.status === 'completed' ? 'active-badge' : 'pending-badge'}">${r.status}</span></td>
+      <td>
+        <div class="row-actions">
+          <button class="secondary" onclick="openEditReportModal('${r.id}')">Edit</button>
+          <button class="secondary" onclick="openReportDetail('${r.id}')">View</button>
+          <button class="danger" onclick="deleteReport('${r.id}', '${r.visit_number.replace(/'/g,"\\'")}')">Delete</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════
+//  Create modal
+// ═══════════════════════════════════════════════════════
+async function openCreateReportModal() {
+  reportState = {};
+  reportIssueTags = {};
+  await fetchAllTagDefs();
+  reportSectionNotes = {};
+  reportCustomerAssets = [];
+  currentReportType = 'end_user';
+
+  document.getElementById('report-modal-title').textContent = 'New Visit Report';
+  document.getElementById('rform-report-id').value = '';
+  document.getElementById('report-form-error').style.display = 'none';
+  document.getElementById('rform-visit-number').value = '';
+  document.getElementById('rform-visit-date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('rform-engineer').value = myProfile?.name || '';
+  document.getElementById('rform-overall-notes').value = '';
+  document.getElementById('rform-assets-container').innerHTML = '<div class="empty-state">Select a customer to load their assets.</div>';
+
+  // Reset report type toggle to End User
+  document.querySelectorAll('.report-type-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === 'end_user');
+  });
+
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
+  const sel = document.getElementById('rform-customer-id');
+  sel.innerHTML = '<option value="">— Select Customer —</option>' +
+    (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+
+  document.getElementById('report-modal-overlay').classList.add('open');
+}
+
+// ── Report type toggle ───────────────────────────────────────
+function setReportType(type) {
+  currentReportType = type;
+  document.querySelectorAll('.report-type-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === type);
+  });
+  // Re-load assets for new type if customer already selected
+  const customerId = document.getElementById('rform-customer-id').value;
+  if (customerId) {
+    onReportCustomerChange();
+  } else {
+    document.getElementById('rform-assets-container').innerHTML =
+      '<div class="empty-state">Select a customer to load their assets.</div>';
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+//  Edit modal
+// ═══════════════════════════════════════════════════════
+async function openEditReportModal(reportId) {
+  reportState = {};
+  reportSectionNotes = {};
+  reportIssueTags = {};
+  await fetchAllTagDefs();
+  reportCustomerAssets = [];
+
+  const { data: report } = await sb.from('visit_reports').select('*').eq('id', reportId).single();
+  if (!report) { alert('Could not load report.'); return; }
+
+  // Restore report type
+  currentReportType = report.report_type || 'end_user';
+
+  document.getElementById('report-modal-title').textContent = 'Edit Visit Report';
+  document.getElementById('rform-report-id').value = reportId;
+  document.getElementById('report-form-error').style.display = 'none';
+  document.getElementById('rform-visit-number').value = report.visit_number;
+  document.getElementById('rform-visit-date').value = report.visit_date;
+  document.getElementById('rform-engineer').value = report.engineer_name;
+  document.getElementById('rform-overall-notes').value = report.overall_notes || '';
+  document.getElementById('rform-assets-container').innerHTML = '<div class="empty-state">Loading assets…</div>';
+
+  // Set report type toggle
+  document.querySelectorAll('.report-type-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === currentReportType);
+  });
+
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
+  const sel = document.getElementById('rform-customer-id');
+  sel.innerHTML = '<option value="">— Select Customer —</option>' +
+    (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+  sel.value = report.customer_id;
+
+  const assetGroup = currentReportType === 'data_center' ? 'data_center' : 'end_user';
+  const { data: assets } = await sb.from('assets')
+    .select('id, name, employee_name, category, asset_group')
+    .eq('customer_id', report.customer_id)
+    .eq('asset_group', assetGroup)
+    .order('employee_name');
+  reportCustomerAssets = assets || [];
+
+  // Fetch existing vras + checks
+  const { data: vras } = await sb.from('visit_report_assets')
+    .select('*, visit_report_checks(*)')
+    .eq('visit_report_id', reportId);
+
+  const existingMap = {};
+  (vras || []).forEach(vra => {
+    existingMap[vra.asset_id] = {
+      vraId: vra.id,
+      sectionNotes: vra.section_notes || {},
+      checks: vra.visit_report_checks || []
+    };
+  });
+
+  // Fetch existing issue tags for each VRA
+  const vraIds = (vras || []).map(v => v.id);
+  if (vraIds.length) {
+    const { data: existingTags } = await sb.from('visit_issue_tags')
+      .select('visit_report_asset_id, issue_tag_definitions(id, section)')
+      .in('visit_report_asset_id', vraIds);
+
+    const vraToAsset = {};
+    (vras || []).forEach(v => { vraToAsset[v.id] = v.asset_id; });
+
+    (existingTags || []).forEach(vit => {
+      const assetId = vraToAsset[vit.visit_report_asset_id];
+      const tagId = vit.issue_tag_definitions?.id;
+      const section = vit.issue_tag_definitions?.section;
+      if (!assetId || !tagId || !section) return;
+      if (!reportIssueTags[assetId]) reportIssueTags[assetId] = {};
+      if (!reportIssueTags[assetId][section]) reportIssueTags[assetId][section] = [];
+      if (!reportIssueTags[assetId][section].includes(tagId))
+        reportIssueTags[assetId][section].push(tagId);
+    });
+  }
+
+  const checklist = getChecklist(currentReportType);
+
+  // Initialize state
+  (assets || []).forEach(a => {
+    const existing = existingMap[a.id];
+    reportState[a.id] = {};
+    reportSectionNotes[a.id] = existing?.sectionNotes || {};
+    checklist.forEach(s => {
+      const match = existing?.checks.find(ch => ch.section === s && ch.sub_check === s);
+      reportState[a.id][s] = match?.result || null;
+    });
+  });
+
+  document.getElementById('report-modal-overlay').classList.add('open');
+  renderEditAssetSelection(assets || [], new Set(Object.keys(existingMap)));
+}
+
+function renderEditAssetSelection(assets, previouslyIncludedIds) {
+  const container = document.getElementById('rform-assets-container');
+  const checklist = getChecklist(currentReportType);
+
+  container.innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div class="report-section-title" style="margin-bottom:10px;">Select assets visited this time</div>
+      ${assets.map(a => `
+        <div class="report-check-row" style="padding:8px 0;">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;">
+            <input type="checkbox" id="asset-chk-${a.id}"
+              ${previouslyIncludedIds.has(a.id) ? 'checked' : ''}
+              onchange="onAssetSelectionChange()"
+              style="width:16px;height:16px;cursor:pointer;margin-bottom:0;flex-shrink:0;"/>
+            <span style="font-size:13.5px;font-weight:600;color:var(--ink);">${a.employee_name || a.name}</span>
+            <span style="font-size:12px;color:#8A8377;">${a.name} · ${a.category}</span>
+          </label>
+        </div>
+      `).join('')}
+    </div>
+    <div id="rform-checklists"></div>
+  `;
+
+  const selectedAssets = assets.filter(a => previouslyIncludedIds.has(a.id));
+  if (selectedAssets.length) {
+    renderChecklistForm(selectedAssets);
+    setTimeout(() => {
+      selectedAssets.forEach(a => {
+        checklist.forEach(s => {
+          const result = reportState[a.id]?.[s];
+          if (result) {
+            const key = slugify(a.id + s);
+            ['pass','ok','fail'].forEach(r => {
+              const btn = document.getElementById(`btn-${key}-${r}`);
+              if (btn) btn.className = 'result-btn' + (r === result ? ` selected-${r}` : '');
+            });
+            if (result === 'ok' || result === 'fail') {
+              const wrap = document.getElementById(`issue-wrap-${slugify(a.id + s)}`);
+              if (wrap) wrap.style.display = 'block';
+            }
+          }
+          const noteEl = document.getElementById(`note-${slugify(a.id + s)}`);
+          if (noteEl && reportSectionNotes[a.id]?.[s]) noteEl.value = reportSectionNotes[a.id][s];
+        });
+
+        const assetTags = reportIssueTags[a.id] || {};
+        Object.entries(assetTags).forEach(([section, tagIds]) => {
+          tagIds.forEach(tagId => {
+            const chk = document.getElementById(`itag-${slugify(a.id + tagId)}`);
+            if (chk) chk.checked = true;
+          });
+        });
+      });
+    }, 50);
+  }
+}
+
+async function onReportCustomerChange() {
+  const customerId = document.getElementById('rform-customer-id').value;
+  const container = document.getElementById('rform-assets-container');
+  if (!customerId) {
+    container.innerHTML = '<div class="empty-state">Select a customer to load their assets.</div>';
+    return;
+  }
+
+  container.innerHTML = '<div class="empty-state">Loading assets…</div>';
+
+  const assetGroup = currentReportType === 'data_center' ? 'data_center' : 'end_user';
+  const { data: assets } = await sb.from('assets')
+    .select('id, name, employee_name, category, asset_group')
+    .eq('customer_id', customerId)
+    .eq('asset_group', assetGroup)
+    .order('employee_name');
+
+  reportCustomerAssets = assets || [];
+  reportState = {};
+  reportSectionNotes = {};
+
+  if (!assets || !assets.length) {
+    const groupLabel = currentReportType === 'data_center' ? 'Data Center' : 'End User';
+    container.innerHTML = `<div class="empty-state">This customer has no ${groupLabel} assets registered.</div>`;
+    return;
+  }
+
+  container.innerHTML = `
+    <div style="margin-bottom:12px;">
+      <div class="report-section-title" style="margin-bottom:10px;">Select assets visited this time</div>
+      ${assets.map(a => `
+        <div class="report-check-row" style="padding:8px 0;">
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;">
+            <input type="checkbox" id="asset-chk-${a.id}"
+              onchange="onAssetSelectionChange()"
+              style="width:16px;height:16px;cursor:pointer;margin-bottom:0;flex-shrink:0;"/>
+            <span style="font-size:13.5px;font-weight:600;color:var(--ink);">${a.employee_name || a.name}</span>
+            <span style="font-size:12px;color:#8A8377;">${a.name} · ${a.category}</span>
+          </label>
+        </div>
+      `).join('')}
+    </div>
+    <div id="rform-checklists"></div>
+  `;
+}
+
+function onAssetSelectionChange() {
+  const container = document.getElementById('rform-checklists');
+  if (!container) return;
+
+  const checklist = getChecklist(currentReportType);
+  const selectedAssets = reportCustomerAssets.filter(a =>
+    document.getElementById(`asset-chk-${a.id}`)?.checked
+  );
+
+  selectedAssets.forEach(a => {
+    if (!reportState[a.id]) {
+      reportState[a.id] = {};
+      reportSectionNotes[a.id] = {};
+      checklist.forEach(s => { reportState[a.id][s] = null; });
+    }
+  });
+
+  if (!selectedAssets.length) { container.innerHTML = ''; return; }
+  renderChecklistForm(selectedAssets);
+}
+
+// ── Checklist form renderer — works for both EU and DC ───────
+function renderChecklistForm(assets) {
+  const container = document.getElementById('rform-checklists');
+  if (!container) return;
+
+  const checklist = getChecklist(currentReportType);
+
+  container.innerHTML = assets.map(a => `
+    <div class="report-asset-block" style="margin-top:6px;">
+      <div class="report-asset-header">
+        <h3>${a.employee_name || a.name}</h3>
+        <span class="a-sub">${a.name} · ${a.category}</span>
+      </div>
+
+      ${checklist.map(s => `
+        <div class="report-section-block">
+          <div class="report-check-row">
+            <span class="report-check-label" style="font-weight:600;font-size:13px;">${s}</span>
+            <div class="result-btns">
+              <button class="result-btn" id="btn-${slugify(a.id+s)}-pass"
+                onclick="setSectionResult('${a.id}','${s}','pass')">PASS</button>
+              <button class="result-btn" id="btn-${slugify(a.id+s)}-ok"
+                onclick="setSectionResult('${a.id}','${s}','ok')">OK</button>
+              <button class="result-btn" id="btn-${slugify(a.id+s)}-fail"
+                onclick="setSectionResult('${a.id}','${s}','fail')">FAIL</button>
+            </div>
+          </div>
+          <div class="section-note-row">
+            <input type="text" placeholder="Note (optional)"
+              id="note-${slugify(a.id+s)}"
+              onchange="setSectionNote('${a.id}','${s}',this.value)"/>
+          </div>
+          <div id="issue-wrap-${slugify(a.id+s)}" style="display:none;">
+            ${renderIssueTags(a.id, s)}
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+}
+
+function slugify(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash) + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return 'k' + Math.abs(hash).toString(36);
+}
+
+function onTagChange(assetId, section, tagId, checked) {
+  if (!reportIssueTags[assetId]) reportIssueTags[assetId] = {};
+  if (!reportIssueTags[assetId][section]) reportIssueTags[assetId][section] = [];
+  if (checked) {
+    if (!reportIssueTags[assetId][section].includes(tagId))
+      reportIssueTags[assetId][section].push(tagId);
+  } else {
+    reportIssueTags[assetId][section] = reportIssueTags[assetId][section].filter(id => id !== tagId);
+  }
+}
+
+function setSectionResult(assetId, section, result) {
+  if (!reportState[assetId]) reportState[assetId] = {};
+  reportState[assetId][section] = result;
+  const key = slugify(assetId + section);
+  ['pass','ok','fail'].forEach(r => {
+    const btn = document.getElementById(`btn-${key}-${r}`);
+    if (btn) btn.className = 'result-btn' + (r === result ? ` selected-${r}` : '');
+  });
+  toggleIssueTags(assetId, section, result);
+}
+
+function setSectionNote(assetId, section, value) {
+  if (!reportSectionNotes[assetId]) reportSectionNotes[assetId] = {};
+  reportSectionNotes[assetId][section] = value;
+}
+
+function closeReportModal() {
+  document.getElementById('report-modal-overlay').classList.remove('open');
+}
+
+// ═══════════════════════════════════════════════════════
+//  Save (create + edit)
+// ═══════════════════════════════════════════════════════
+async function saveVisitReport() {
+  const errEl = document.getElementById('report-form-error');
+  errEl.style.display = 'none';
+  const saveBtn = document.getElementById('report-save-btn');
+  saveBtn.disabled = true;
+
+  const existingReportId = document.getElementById('rform-report-id').value;
+  const customer_id   = document.getElementById('rform-customer-id').value;
+  const visit_number  = document.getElementById('rform-visit-number').value.trim();
+  const visit_date    = document.getElementById('rform-visit-date').value;
+  const engineer_name = document.getElementById('rform-engineer').value.trim();
+  const overall_notes = document.getElementById('rform-overall-notes').value.trim();
+  const report_type   = currentReportType;
+
+  if (!customer_id || !visit_number || !visit_date || !engineer_name) {
+    errEl.textContent = 'Customer, visit number, date and engineer name are required.';
+    errEl.style.display = 'block'; saveBtn.disabled = false; return;
+  }
+
+  const selectedAssets = reportCustomerAssets.filter(a =>
+    document.getElementById(`asset-chk-${a.id}`)?.checked
+  );
+  if (!selectedAssets.length) {
+    errEl.textContent = 'Please select at least one asset.';
+    errEl.style.display = 'block'; saveBtn.disabled = false; return;
+  }
+
+  const checklist = getChecklist(report_type);
+  let reportId = existingReportId;
+
+  if (existingReportId) {
+    const { error } = await sb.from('visit_reports')
+      .update({ customer_id, visit_number, visit_date, engineer_name, overall_notes, report_type, status: 'completed' })
+      .eq('id', existingReportId);
+    if (error) { errEl.textContent = 'Update failed: ' + error.message; errEl.style.display = 'block'; saveBtn.disabled = false; return; }
+    await sb.from('visit_report_assets').delete().eq('visit_report_id', existingReportId);
+  } else {
+    const { data: report, error } = await sb.from('visit_reports')
+      .insert({ customer_id, visit_number, visit_date, engineer_name, overall_notes, report_type, status: 'completed' })
+      .select().single();
+    if (error) { errEl.textContent = 'Failed: ' + error.message; errEl.style.display = 'block'; saveBtn.disabled = false; return; }
+    reportId = report.id;
+  }
+
+  for (const asset of selectedAssets) {
+    const section_notes = reportSectionNotes[asset.id] || {};
+    const results = Object.values(reportState[asset.id] || {}).filter(Boolean);
+    const overall_status = results.includes('fail') ? 'fail'
+      : results.includes('ok') ? 'ok'
+      : results.length ? 'pass' : null;
+
+    const { data: vra, error: vraError } = await sb.from('visit_report_assets')
+      .insert({ visit_report_id: reportId, asset_id: asset.id, overall_status, section_notes })
+      .select().single();
+    if (vraError || !vra) continue;
+
+    // One row per section using the correct checklist
+    const checks = checklist.map(s => ({
+      visit_report_asset_id: vra.id,
+      section: s,
+      sub_check: s,
+      result: reportState[asset.id]?.[s] || null
+    }));
+    await sb.from('visit_report_checks').insert(checks);
+
+    // Save issue tags
+    const { data: existingVra } = await sb.from('visit_report_assets')
+      .select('id').eq('visit_report_id', reportId).eq('asset_id', asset.id).maybeSingle();
+    if (existingVra) {
+      await sb.from('visit_issue_tags').delete().eq('visit_report_asset_id', existingVra.id);
+    }
+    await saveIssueTags(vra.id, asset.id);
+
+    // Auto-assign status using the correct rule set
+    await autoAssignStatus(asset.id, customer_id, reportState[asset.id] || {}, report_type);
+  }
+
+  saveBtn.disabled = false;
+  closeReportModal();
+  invalidateAdminTab('reports');
+  invalidateAdminTab('overview');
+  loadReportsList();
+}
+
+// ── Auto-assign status rules ─────────────────────────────────
+// End User critical sections
+const CRITICAL_SECTIONS = [
+  'System Health Check',
+  'Security Check',
+  'Backup Verification',
+  'Network Check',
+  'Hardware Inspection',
+  'Compliance Check'
+];
+const WARNING_SECTIONS = [
+  'Performance Optimization'
+];
+
+// Data Center critical sections
+const DC_CRITICAL_SECTIONS = [
+  'Power & UPS Check',
+  'Server Hardware Inspection',
+  'Storage & Backup Verification',
+  'Security & Access Control',
+  'Compliance & Documentation'
+];
+const DC_WARNING_SECTIONS = [
+  'Cooling & Environmental',
+  'Network Infrastructure',
+  'Virtualization & OS Health'
+];
+
+async function autoAssignStatus(assetId, customerId, sectionResults, reportType) {
+  let targetStatusId = null;
+
+  const criticalSections = reportType === 'data_center' ? DC_CRITICAL_SECTIONS : CRITICAL_SECTIONS;
+  const warningSections  = reportType === 'data_center' ? DC_WARNING_SECTIONS  : WARNING_SECTIONS;
+
+  const hasCriticalFail = criticalSections.some(s => sectionResults[s] === 'fail');
+  const hasWarningFail  = warningSections.some(s => sectionResults[s] === 'fail');
+  const allResults = Object.values(sectionResults).filter(Boolean);
+  const allPass = allResults.length > 0 && allResults.every(r => r === 'pass' || r === 'ok');
+
+  if (hasCriticalFail) {
+    targetStatusId = '00000000-0000-0000-0000-000000000001'; // Critical
+  } else if (hasWarningFail) {
+    targetStatusId = '00000000-0000-0000-0000-000000000002'; // Warning
+  } else if (allPass) {
+    targetStatusId = '00000000-0000-0000-0000-000000000003'; // Pass
+  }
+
+  if (!targetStatusId) return;
+
+  await sb.from('asset_status_assignments')
+    .update({ is_resolved: true, resolved_at: new Date().toISOString() })
+    .eq('asset_id', assetId)
+    .eq('is_resolved', false);
+
+  const { data: existing } = await sb.from('asset_status_assignments')
+    .select('id')
+    .eq('asset_id', assetId)
+    .eq('status_id', targetStatusId)
+    .maybeSingle();
+
+  if (existing) {
+    await sb.from('asset_status_assignments')
+      .update({ is_resolved: false, resolved_at: null, notes: 'Auto-assigned from visit report' })
+      .eq('id', existing.id);
+  } else {
+    await sb.from('asset_status_assignments')
+      .insert({
+        asset_id: assetId,
+        status_id: targetStatusId,
+        customer_id: customerId,
+        is_resolved: false,
+        notes: 'Auto-assigned from visit report'
+      });
+  }
+}
+
+async function deleteReport(reportId, name) {
+  if (!confirm(`Delete report "${name}"? This cannot be undone.`)) return;
+  const { error } = await sb.from('visit_reports').delete().eq('id', reportId);
+  if (error) { alert('Failed: ' + error.message); return; }
+  invalidateAdminTab('reports');
+  invalidateAdminTab('overview');
+  loadReportsList();
+}
+
+// ═══════════════════════════════════════════════════════
+//  Detail view (admin + customer)
+// ═══════════════════════════════════════════════════════
+async function openVisitDetail(visitNumber, customerId) {
+  document.getElementById('report-detail-body').innerHTML = '<div class="empty-state">Loading…</div>';
+  document.getElementById('report-detail-overlay').classList.add('open');
+
+  const { data: reports } = await sb.from('visit_reports')
+    .select('*, profiles!visit_reports_customer_id_fkey(name)')
+    .eq('customer_id', customerId)
+    .eq('visit_number', visitNumber)
+    .order('visit_date', { ascending: false });
+
+  if (!reports?.length) {
+    document.getElementById('report-detail-body').innerHTML = '<div class="empty-state">No report found.</div>';
+    return;
+  }
+
+  const report = reports[0];
+  const checklist = getChecklist(report.report_type);
+
+  const allReportIds = reports.map(r => r.id);
+  const { data: vras } = await sb.from('visit_report_assets')
+    .select('*, assets(name, employee_name, category)')
+    .in('visit_report_id', allReportIds);
+
+  const { data: allChecks } = await sb.from('visit_report_checks')
+    .select('*')
+    .in('visit_report_asset_id', (vras || []).map(v => v.id));
+
+  const vraIds = (vras || []).map(v => v.id);
+  const tagMap = await fetchTagsForVras(vraIds);
+
+  const typeLabel = report.report_type === 'data_center' ? 'Data Center Report' : 'End User Report';
+  const typeBadge = report.report_type === 'data_center'
+    ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;">Data Center</span>`
+    : `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;">End User</span>`;
+
+  document.getElementById('report-detail-title').textContent = `${report.visit_number} — ${fmtDate(report.visit_date)}`;
+
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;
+      padding:16px;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;">
+      <div><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Customer</div>
+        <div style="font-size:13.5px;font-weight:600;color:var(--ink);">${report.profiles?.name || '—'}</div></div>
+      <div><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Visit Number</div>
+        <div style="font-size:13.5px;font-weight:600;color:var(--ink);">${report.visit_number}</div></div>
+      <div><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Visit Date</div>
+        <div style="font-size:13.5px;font-weight:600;color:var(--ink);">${fmtDate(report.visit_date)}</div></div>
+      <div><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Engineer</div>
+        <div style="font-size:13.5px;font-weight:600;color:var(--ink);">${report.engineer_name}</div></div>
+      <div style="grid-column:1/-1;"><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Report Type</div>
+        <div>${typeBadge}</div></div>
+    </div>
+    ${report.overall_notes ? `<div style="margin-bottom:16px;padding:12px 16px;background:#FEF9E7;border-radius:8px;border:1px solid #F0C06A;">
+      <div style="font-size:11px;font-weight:700;color:#92660F;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Notes</div>
+      <div style="font-size:13px;color:#7a5a0a;">${report.overall_notes}</div></div>` : ''}
+  `;
+
+  (vras || []).forEach(vra => {
+    const asset = vra.assets;
+    const assetChecks = (allChecks || []).filter(c => c.visit_report_asset_id === vra.id);
+    const sectionNotes = vra.section_notes || {};
+    const vraTags = tagMap[vra.id] || [];
+    const overallBadge = vra.overall_status
+      ? `<span class="result-badge ${vra.overall_status}">${vra.overall_status.toUpperCase()}</span>`
+      : `<span class="result-badge none">—</span>`;
+
+    html += `
+      <div class="report-asset-block" style="margin-bottom:14px;">
+        <div class="report-asset-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <h3>${asset?.employee_name || asset?.name || '—'}</h3>
+            <span class="a-sub">${asset?.name || ''} · ${asset?.category || ''}</span>
+          </div>
+          ${overallBadge}
+        </div>
+        ${checklist.map(s => {
+          const match = assetChecks.find(c => c.section === s);
+          const result = match?.result || null;
+          const note = sectionNotes[s];
+          const sectionTags = vraTags.filter(t => t.section === s);
+          return `
+            <div class="report-section-block">
+              <div class="report-check-row">
+                <span class="report-check-label" style="font-weight:600;font-size:13px;">${s}</span>
+                ${result
+                  ? `<span class="result-badge ${result}">${result.toUpperCase()}</span>`
+                  : `<span class="result-badge none">—</span>`
+                }
+              </div>
+              ${note ? `<div style="padding:4px 0 2px;font-size:12px;color:var(--ink-soft);font-style:italic;">Note: ${note}</div>` : ''}
+              ${sectionTags.length ? `<div style="margin-top:4px;">${renderTagPills(sectionTags, result === 'fail')}</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  });
+
+  document.getElementById('report-detail-body').innerHTML = html;
+}
+
+async function openReportDetail(reportId) {
+  document.getElementById('report-detail-body').innerHTML = '<div class="empty-state">Loading…</div>';
+  document.getElementById('report-detail-overlay').classList.add('open');
+
+  const { data: report } = await sb.from('visit_reports')
+    .select('*, profiles!visit_reports_customer_id_fkey(name)')
+    .eq('id', reportId).single();
+
+  const checklist = getChecklist(report?.report_type);
+
+  const { data: vras } = await sb.from('visit_report_assets')
+    .select('*, assets(name, employee_name, category)')
+    .eq('visit_report_id', reportId);
+
+  const { data: allChecks } = await sb.from('visit_report_checks')
+    .select('*')
+    .in('visit_report_asset_id', (vras || []).map(v => v.id));
+
+  const vraIds = (vras || []).map(v => v.id);
+  const tagMap = await fetchTagsForVras(vraIds);
+
+  const typeBadge = report?.report_type === 'data_center'
+    ? `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:#EEF2FF;color:#3730A3;border:1px solid #C7D2FE;">Data Center</span>`
+    : `<span style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;background:#F0FDF4;color:#166534;border:1px solid #BBF7D0;">End User</span>`;
+
+  document.getElementById('report-detail-title').textContent = `${report.visit_number} — ${fmtDate(report.visit_date)}`;
+
+  let html = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;
+      padding:16px;background:#F8FAFC;border-radius:8px;border:1px solid #E2E8F0;">
+      <div><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Customer</div>
+        <div style="font-size:13.5px;font-weight:600;color:var(--ink);">${report.profiles?.name || '—'}</div></div>
+      <div><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Visit Number</div>
+        <div style="font-size:13.5px;font-weight:600;color:var(--ink);">${report.visit_number}</div></div>
+      <div><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Visit Date</div>
+        <div style="font-size:13.5px;font-weight:600;color:var(--ink);">${fmtDate(report.visit_date)}</div></div>
+      <div><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Engineer</div>
+        <div style="font-size:13.5px;font-weight:600;color:var(--ink);">${report.engineer_name}</div></div>
+      <div style="grid-column:1/-1;"><div style="font-size:11px;font-weight:700;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:3px;">Report Type</div>
+        <div>${typeBadge}</div></div>
+    </div>
+    ${report.overall_notes ? `<div style="margin-bottom:16px;padding:12px 16px;background:#FEF9E7;border-radius:8px;border:1px solid #F0C06A;">
+      <div style="font-size:11px;font-weight:700;color:#92660F;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;">Notes</div>
+      <div style="font-size:13px;color:#7a5a0a;">${report.overall_notes}</div></div>` : ''}
+  `;
+
+  (vras || []).forEach(vra => {
+    const asset = vra.assets;
+    const assetChecks = (allChecks || []).filter(c => c.visit_report_asset_id === vra.id);
+    const sectionNotes = vra.section_notes || {};
+    const vraTags = tagMap[vra.id] || [];
+    const overallBadge = vra.overall_status
+      ? `<span class="result-badge ${vra.overall_status}">${vra.overall_status.toUpperCase()}</span>`
+      : `<span class="result-badge none">—</span>`;
+
+    html += `
+      <div class="report-asset-block" style="margin-bottom:14px;">
+        <div class="report-asset-header" style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <h3>${asset?.employee_name || asset?.name || '—'}</h3>
+            <span class="a-sub">${asset?.name || ''} · ${asset?.category || ''}</span>
+          </div>
+          ${overallBadge}
+        </div>
+        ${checklist.map(s => {
+          const match = assetChecks.find(c => c.section === s);
+          const result = match?.result || null;
+          const note = sectionNotes[s];
+          const sectionTags = vraTags.filter(t => t.section === s);
+          return `
+            <div class="report-section-block">
+              <div class="report-check-row">
+                <span class="report-check-label" style="font-weight:600;font-size:13px;">${s}</span>
+                ${result
+                  ? `<span class="result-badge ${result}">${result.toUpperCase()}</span>`
+                  : `<span class="result-badge none">—</span>`
+                }
+              </div>
+              ${note ? `<div style="padding:4px 0 2px;font-size:12px;color:var(--ink-soft);font-style:italic;">Note: ${note}</div>` : ''}
+              ${sectionTags.length ? `<div style="margin-top:4px;">${renderTagPills(sectionTags, result === 'fail')}</div>` : ''}
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+  });
+
+  document.getElementById('report-detail-body').innerHTML = html;
+}
+
+function closeReportDetail() {
+  document.getElementById('report-detail-overlay').classList.remove('open');
+}

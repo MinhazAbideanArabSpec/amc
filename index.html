@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ArabSpec AMC Portal</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>ArabSpec AMC Portal</h1>
+    <div class="login-sub">Service &amp; Contract Management</div>
+
+    <!-- Step 1: Email -->
+    <div id="login-step-email">
+      <div id="login-error"></div>
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="your@email.com" autocomplete="email"/>
+      <button onclick="sendOtp()" id="btn-send-otp" style="width:100%;">Send Sign-In Code</button>
+    </div>
+
+    <!-- Step 2: OTP -->
+    <div id="login-step-otp" style="display:none;">
+      <div id="login-otp-msg" style="font-size:13px;color:#94A3B8;margin-bottom:16px;"></div>
+      <div id="login-otp-error"></div>
+      <label>Sign-In Code</label>
+      <input type="text" id="login-otp" placeholder="••••••••"
+        maxlength="8" autocomplete="one-time-code"
+        style="text-align:center;font-size:20px;font-weight:600;letter-spacing:0.2em;"/>
+      <button onclick="verifyOtp()" id="btn-verify-otp" style="width:100%;margin-bottom:10px;">Sign In</button>
+      <div style="display:flex;justify-content:space-between;">
+        <button class="secondary" onclick="backToEmail()" style="padding:7px 12px;font-size:12.5px;">← Back</button>
+        <button class="secondary" onclick="resendOtp()" id="btn-resend" style="padding:7px 12px;font-size:12.5px;">Resend Code</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+<div class="app-layout">
+
+  <!-- ═══ ADMIN SIDEBAR ═══ -->
+  <aside class="app-sidebar" id="admin-sidebar" style="display:none;">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+      </div>
+      <div>
+        <div class="sidebar-logo-text">ArabSpec</div>
+        <div class="sidebar-logo-sub">AMC Portal</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">Main</div>
+      <a class="sidebar-nav-item active" id="nav-tab-overview" onclick="switchAdminTab('overview')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        Dashboard
+      </a>
+      <a class="sidebar-nav-item" id="nav-tab-clients" onclick="switchAdminTab('clients')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Clients
+      </a>
+      <a class="sidebar-nav-item" id="nav-tab-users" onclick="switchAdminTab('users')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        Users
+      </a>
+      <a class="sidebar-nav-item" id="nav-tab-contracts" onclick="switchAdminTab('contracts')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        Contracts
+      </a>
+      <a class="sidebar-nav-item" id="nav-tab-assets" onclick="switchAdminTab('assets')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+        Assets
+      </a>
+      <div class="sidebar-nav-label">Operations</div>
+      <a class="sidebar-nav-item" id="nav-tab-reports" onclick="switchAdminTab('reports')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Visit Reports
+      </a>
+      <a class="sidebar-nav-item" id="nav-tab-status" onclick="switchAdminTab('status')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Status
+      </a>
+      <a class="sidebar-nav-item" id="nav-tab-subs" onclick="switchAdminTab('subs')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Renewals
+        <span class="sidebar-nav-badge" id="admin-renewals-badge" style="display:none;"></span>
+      </a>
+      <a class="sidebar-nav-item" id="nav-tab-tags" onclick="switchAdminTab('tags')">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+        Asset Summary
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <div style="font-size:12px;font-weight:600;color:#fff;" id="who-name-admin">—</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.45);">Admin</div>
+      </div>
+      <div class="sidebar-signout" onclick="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        Sign out
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══ CUSTOMER SIDEBAR ═══ -->
+  <aside class="app-sidebar" id="customer-sidebar" style="display:none;">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+      </div>
+      <div>
+        <div class="sidebar-logo-text" id="who-name-customer">—</div>
+        <div class="sidebar-logo-sub">Customer Portal</div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="sidebar-nav-label">Menu</div>
+      <a class="sidebar-nav-item active" id="cust-tab-overview" onclick="switchCustomerTab('overview')" data-t="tab_overview">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+        <span data-t="tab_overview">Dashboard</span>
+      </a>
+      <a class="sidebar-nav-item" id="cust-tab-reports" onclick="switchCustomerTab('reports')" data-t="tab_reports">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <span data-t="tab_reports">Visit Reports</span>
+      </a>
+      <a class="sidebar-nav-item" id="cust-tab-assets" onclick="switchCustomerTab('assets')" data-t="tab_assets">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+        <span data-t="tab_assets">Assets</span>
+      </a>
+      <a class="sidebar-nav-item" id="cust-tab-dc" onclick="switchCustomerTab('dc')" data-t="tab_dc">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        <span data-t="tab_dc">Data Center</span>
+      </a>
+      <a class="sidebar-nav-item" id="cust-tab-renewals" onclick="switchCustomerTab('renewals')" data-t="tab_renewals">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        <span data-t="tab_renewals">Renewals</span>
+        <span class="sidebar-nav-badge" id="cust-renewals-badge" style="display:none;"></span>
+      </a>
+      <a class="sidebar-nav-item" id="cust-tab-contract" onclick="switchCustomerTab('contract')" data-t="tab_contract">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <span data-t="tab_contract">Contract</span>
+      </a>
+    </nav>
+    <div class="sidebar-footer">
+      <div id="lang-toggle">
+        <button class="lang-btn" id="lang-btn-en" onclick="setLanguage('en')">EN</button>
+        <button class="lang-btn" id="lang-btn-ar" onclick="setLanguage('ar')">AR</button>
+      </div>
+      <div class="sidebar-signout" onclick="logout()">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        <span data-t="signout">Sign out</span>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <div class="app-main" id="app-main-area">
+
+    <!-- View As Banner -->
+    <div id="view-as-banner" style="display:none;align-items:center;justify-content:space-between;
+      background:linear-gradient(135deg,#1C2F5E,#162447);color:#fff;padding:10px 24px;gap:12px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;opacity:0.75;text-transform:uppercase;letter-spacing:0.06em;">Logged in as Client</div>
+          <div style="font-size:13px;font-weight:700;" id="view-as-name"></div>
+        </div>
+      </div>
+      <button onclick="exitViewAs()" style="display:flex;align-items:center;gap:6px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;padding:6px 14px;font-size:12px;border-radius:6px;cursor:pointer;font-weight:600;">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        Exit to Admin
+      </button>
+    </div>
+
+    <!-- Topbar (shared, content set by JS) -->
+    <div class="app-topbar" id="app-topbar">
+      <div class="app-topbar-left">
+        <div class="app-topbar-title" id="app-topbar-title">Dashboard</div>
+        <div class="app-topbar-sub" id="app-topbar-sub"></div>
+      </div>
+      <div class="app-topbar-right">
+        <div class="app-topbar-date" id="dash-hero-date"></div>
+        <div class="app-topbar-bell" onclick="openNotificationsModal()" id="topbar-bell" style="display:none;">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <div id="topbar-notif-dot" style="display:none;position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:#C0392B;border:1px solid #fff;"></div>
+        </div>
+        <div class="app-topbar-avatar" id="topbar-avatar">—</div>
+        <button onclick="refreshAdminTab()" id="admin-refresh-btn" title="Refresh" style="display:none;padding:5px 10px;font-size:16px;background:none;border:1px solid var(--line);border-radius:6px;cursor:pointer;color:#888;">↻</button>
+      </div>
+    </div>
+
+    <!-- Alert banner -->
+    <div class="app-alert-banner" id="app-alert-banner" style="display:none;"></div>
+
+    <!-- ADMIN VIEW -->
+    <div id="admin-view" style="display:none;">
+      <div class="content" style="padding:20px 24px;background:var(--paper);min-height:calc(100vh - 52px);">
+
+      <!-- Overview panel -->
+      <div id="admin-panel-overview">
+
+        <!-- Stat cards -->
+        <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px;">
+          <div class="stat-card">
+            <div class="stat-label">Total Customers</div>
+            <div class="stat-value" id="stat-total-customers">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Total Assets</div>
+            <div class="stat-value" id="stat-total-assets-admin">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Active Contracts</div>
+            <div class="stat-value" id="stat-active-contracts">—</div>
+          </div>
+          <div class="stat-card warn">
+            <div class="stat-label">Expiring Soon</div>
+            <div class="stat-value" id="stat-expiring-soon">—</div>
+            <div class="stat-sub">within 60 days</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Visits This Month</div>
+            <div class="stat-value" id="stat-visits-month">—</div>
+          </div>
+        </div>
+
+        <!-- Row 1: Contracts Expiring -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header"><h2>⚠️ Contracts Expiring Soon</h2></div>
+          <table>
+            <thead><tr><th>Contract #</th><th>Customer</th><th>End Date</th><th>Days Left</th></tr></thead>
+            <tbody id="expiring-tbody"><tr><td colspan="4" class="empty-state">Loading…</td></tr></tbody>
+          </table>
+        </div>
+
+        <!-- Row 2: Recent Visit Reports + Upcoming Visits -->
+        <div class="dash-row" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
+          <div class="card">
+            <div class="card-header"><h2>📋 Recent Visit Reports</h2></div>
+            <table>
+              <thead><tr><th>Visit #</th><th>Customer</th><th>Date</th><th>Engineer</th></tr></thead>
+              <tbody id="admin-recent-visits-tbody"><tr><td colspan="4" class="empty-state">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2>📅 Upcoming Scheduled Visits</h2></div>
+            <table>
+              <thead><tr><th>Customer</th><th>Next Visit</th><th>Days Away</th></tr></thead>
+              <tbody id="admin-upcoming-tbody"><tr><td colspan="3" class="empty-state">Loading…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Row 3: Asset Health Summary + Asset Summary -->
+        <div class="dash-row" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
+          <div class="card">
+            <div class="card-header"><h2>📊 Asset Health by Customer</h2></div>
+            <table>
+              <thead><tr><th>Customer</th><th style="color:#C0392B;">Critical</th><th style="color:#D4A017;">Warning</th><th style="color:#27AE60;">Pass</th><th style="color:#94A3B8;">No Status</th></tr></thead>
+              <tbody id="admin-health-tbody"><tr><td colspan="5" class="empty-state">Loading…</td></tr></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <div class="card-header"><h2>🏷️ Asset Summary</h2></div>
+            <div id="admin-top-tags"><div class="empty-state">Loading…</div></div>
+          </div>
+        </div>
+
+        <!-- Row 4: Renewals Expiring -->
+        <div class="card">
+          <div class="card-header"><h2>🔄 Renewals Expiring Soon</h2></div>
+          <table>
+            <thead><tr><th>Software</th><th>Customer</th><th>Vendor</th><th>Expiry</th><th>Days Left</th></tr></thead>
+            <tbody id="admin-subs-expiring-tbody"><tr><td colspan="5" class="empty-state">Loading…</td></tr></tbody>
+          </table>
+        </div>
+
+      </div>
+
+      <!-- Users panel -->
+      <!-- Clients panel -->
+      <div id="admin-panel-clients" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-icon" style="background:linear-gradient(135deg,#1A6B3A,#145730);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+              </div>
+              <h2>Clients</h2>
+            </div>
+            <button onclick="openCreateClientModal()">+ Add Client</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Company</th><th>Email</th><th>Contact</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="clients-tbody">
+              <tr><td colspan="5" class="empty-state">Loading clients…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Users (admin accounts) panel -->
+      <div id="admin-panel-users" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-icon" style="background:linear-gradient(135deg,#1C2F5E,#162447);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+              </div>
+              <h2>Admin Users</h2>
+            </div>
+            <button onclick="openCreateModal()">+ Create User</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Name</th><th>Email</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="4" class="empty-state">Loading users…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Contracts panel -->
+      <div id="admin-panel-contracts" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Contracts</h2>
+            <button onclick="openCreateContractModal()">+ Create Contract</button>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Contract #</th><th>Customer</th><th>Type</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="contracts-tbody">
+              <tr><td colspan="7" class="empty-state">Loading contracts…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Assets panel -->
+      <div id="admin-panel-assets" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Assets</h2>
+            <button onclick="openCreateAssetModal()">+ Add Asset</button>
+          </div>
+          <div style="margin-bottom:14px;">
+            <select id="asset-customer-filter" onchange="loadAssetsList()" style="max-width:280px; margin-bottom:0;">
+              <option value="">All Customers</option>
+            </select>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Employee</th><th>Asset</th><th>Customer</th><th>Category</th><th>Group</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="assets-tbody">
+              <tr><td colspan="6" class="empty-state">Loading assets…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Visit Reports panel -->
+      <div id="admin-panel-reports" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Visit Reports</h2>
+            <button onclick="openCreateReportModal()">+ New Visit Report</button>
+          </div>
+          <div style="margin-bottom:14px;">
+            <select id="report-customer-filter" onchange="loadReportsList()" style="max-width:280px; margin-bottom:0;">
+              <option value="">All Customers</option>
+            </select>
+          </div>
+          <table>
+            <thead>
+              <tr><th>Visit #</th><th>Customer</th><th>Date</th><th>Engineer</th><th>Assets</th><th>Status</th><th>Actions</th></tr>
+            </thead>
+            <tbody id="reports-tbody">
+              <tr><td colspan="6" class="empty-state">Loading reports…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Status panel -->
+      <div id="admin-panel-status" style="display:none;">
+
+        <!-- Fixed status definitions (read-only) -->
+        <div class="card">
+          <div class="card-header"><h2>Status Definitions</h2></div>
+          <div id="status-definitions-list">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Renewals panel -->
+      <div id="admin-panel-subs" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Renewals</h2>
+            <button onclick="openCreateSubModal()">+ Add Renewal</button>
+          </div>
+          <!-- Summary cards -->
+          <div id="subs-summary" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;align-items:stretch;"></div>
+
+          <div style="margin-bottom:14px;">
+            <select id="sub-customer-filter" onchange="loadSubscriptions()" style="max-width:280px;margin-bottom:0;">
+              <option value="">All Customers</option>
+            </select>
+          </div>
+          <div id="subs-list">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Issue Tags panel -->
+      <div id="admin-panel-tags" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>Asset Summary</h2>
+            <span style="font-size:12px;color:#8A8377;">Tags appear as checkboxes in visit reports when a section is marked FAIL</span>
+          </div>
+          <div id="tags-panel-body">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /admin-view -->
+
+    <!-- CUSTOMER VIEW -->
+    <div id="customer-view" style="display:none;">
+      <div class="content" style="padding:20px 24px;background:var(--paper);min-height:calc(100vh - 52px);">
+
+      <!-- Alert banner for customer -->
+      <div id="customer-alert-banner" style="display:none;"></div>
+
+      <!-- Overview panel -->
+      <div id="cust-panel-overview">
+
+        <!-- Stat cards row -->
+        <div class="stat-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:16px;">
+          <div class="stat-card">
+            <div class="stat-label" data-t="stat_days_remaining">Contract Days</div>
+            <div class="stat-value" id="istat-contract-days">—</div>
+            <div class="stat-sub" id="istat-contract-num">—</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label" data-t="stat_total_assets">Total Assets</div>
+            <div class="stat-value" id="istat-assets">—</div>
+            <div class="stat-sub" data-t="stat_registered">Registered</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label" data-t="stat_visits_completed">Visits Completed</div>
+            <div class="stat-value" id="istat-visits">—</div>
+            <div class="stat-sub" data-t="stat_completed">Completed</div>
+          </div>
+          <div class="stat-card danger" id="istat-notif-card" onclick="openNotificationsModal()" style="cursor:pointer;">
+            <div class="stat-label" data-t="stat_notifications">Notifications</div>
+            <div class="stat-value" id="istat-notif-count">—</div>
+            <div class="stat-sub" id="istat-notif-sub" data-t="tap_to_view">Tap to view</div>
+          </div>
+        </div>
+        <!-- hidden elements for compat -->
+        <div id="dash-hero-name" style="display:none"></div>
+        <div id="dash-hero-sub" style="display:none"></div>
+        <div id="dash-hero-right" style="display:none"></div>
+        <div id="istat-notif-icon" style="display:none"></div>
+        <div id="icon-stat-grid" style="display:none"></div>
+
+        <!-- 2-col: Contract Overview + Visit Dates & Renewals -->
+        <div class="dash-row" style="grid-template-columns:1fr 1fr;margin-bottom:14px;">
+
+          <!-- Contract Overview -->
+          <div class="card" style="margin-bottom:0;">
+            <div class="card-header">
+              <h2 data-t="card_contract_overview">Contract Overview</h2>
+              <a onclick="switchCustomerTab('contract')" style="font-size:11px;color:var(--accent);font-weight:600;cursor:pointer;" data-t="btn_view_full">View full →</a>
+            </div>
+            <div id="customer-overview-rows"><div class="empty-state">Loading…</div></div>
+            <div id="contract-timeline-wrap" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line);"></div>
+          </div>
+
+          <!-- Visit Dates + Renewals stacked -->
+          <div style="display:flex;flex-direction:column;gap:14px;">
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-header">
+                <h2 data-t="card_visit_dates">Visit Dates</h2>
+              </div>
+              <div id="visit-dates-tile" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:4px;">
+                <div>
+                  <div style="font-size:10px;font-weight:600;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;" data-t="visit_last">Last Visit</div>
+                  <div id="visit-last-date" style="font-size:18px;font-weight:700;color:var(--ink);">—</div>
+                </div>
+                <div>
+                  <div style="font-size:10px;font-weight:600;color:#8A8377;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px;" data-t="visit_next">Next Scheduled</div>
+                  <div id="visit-next-date" style="font-size:18px;font-weight:700;color:var(--ink);">—</div>
+                </div>
+              </div>
+            </div>
+            <div class="card" style="margin-bottom:0;">
+              <div class="card-header">
+                <h2 data-t="tab_subs">Renewals</h2>
+                <a onclick="switchCustomerTab('renewals')" style="font-size:11px;color:var(--accent);font-weight:600;cursor:pointer;" data-t="btn_view_all">View All →</a>
+              </div>
+              <div id="customer-subs-dash"><div class="empty-state">Loading…</div></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Asset status tiles -->
+
+        <div class="dash-row" style="grid-template-columns:1fr 1fr;">
+          <div class="card dash-card">
+            <div class="card-header">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div class="card-icon" style="background:linear-gradient(135deg,#1A6B3A,#145730);">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+                </div>
+                <h2 data-t="card_asset_health">Asset Health</h2>
+              </div>
+            </div>
+            <div class="donut-wrap" id="asset-donut-wrap">
+              <div class="empty-state">Loading…</div>
+            </div>
+          </div>
+          <div class="card dash-card">
+            <div class="card-header">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div class="card-icon" style="background:linear-gradient(135deg,#92660F,#7a560d);">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"/></svg>
+                </div>
+                <h2>Asset Summary</h2>
+              </div>
+            </div>
+            <!-- End User section -->
+            <div style="margin-bottom:6px;">
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 0 6px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:#3B5773;flex-shrink:0;"></div>
+                <span style="font-size:11px;font-weight:700;color:#3B5773;text-transform:uppercase;letter-spacing:0.07em;">End User Devices</span>
+              </div>
+              <div id="dash-issue-tags-panel-eu">
+                <div class="empty-state">Loading…</div>
+              </div>
+            </div>
+
+            <!-- Data Center section -->
+            <div style="margin-top:14px;">
+              <div style="display:flex;align-items:center;gap:8px;padding:8px 0 6px;border-top:1px solid var(--line);margin-top:8px;">
+                <div style="width:8px;height:8px;border-radius:50%;background:#3730A3;flex-shrink:0;"></div>
+                <span style="font-size:11px;font-weight:700;color:#3730A3;text-transform:uppercase;letter-spacing:0.07em;">Data Center Devices</span>
+              </div>
+              <div id="dash-issue-tags-panel-dc">
+                <div class="empty-state">Loading…</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- My Assets in dashboard — split by group with visit scores and issue tags inline -->
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-icon" style="background:linear-gradient(135deg,#1A6B3A,#145730);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+              </div>
+              <h2 data-t="card_my_assets">My Assets</h2>
+            </div>
+          </div>
+
+          <!-- End User Devices section -->
+          <div style="margin-bottom:6px;">
+            <div style="display:flex;align-items:center;gap:8px;padding:10px 0 8px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:#3B5773;flex-shrink:0;"></div>
+              <span style="font-size:12px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.06em;" data-group-label="end_user">End User Devices</span>
+            </div>
+            <div id="customer-assets-list-dash-eu">
+              <div class="empty-state">Loading…</div>
+            </div>
+          </div>
+
+          <!-- Data Center Devices section -->
+          <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--line);">
+            <div style="display:flex;align-items:center;gap:8px;padding-bottom:8px;">
+              <div style="width:8px;height:8px;border-radius:50%;background:#1C2F5E;flex-shrink:0;"></div>
+              <span style="font-size:12px;font-weight:700;color:var(--ink);text-transform:uppercase;letter-spacing:0.06em;" data-group-label="data_center">Data Center Devices</span>
+            </div>
+            <div id="customer-assets-list-dash-dc">
+              <div class="empty-state">Loading…</div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- CONTRACT panel (merged: Profile + Contracts + Subscriptions) -->
+      <div id="cust-panel-contract" style="display:none;">
+
+        <!-- My Profile -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-icon" style="background:linear-gradient(135deg,#3B5773,#2C4257);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+              </div>
+              <h2 data-t="card_my_profile">My Profile</h2>
+            </div>
+          </div>
+          <div id="customer-profile-rows"></div>
+        </div>
+
+        <!-- My Contracts -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-icon" style="background:linear-gradient(135deg,#1A6B3A,#145730);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              </div>
+              <h2 data-t="card_my_contracts">My Contracts</h2>
+            </div>
+          </div>
+          <div id="customer-contracts-list">
+            <div class="empty-state">Loading contracts…</div>
+          </div>
+        </div>
+
+        <!-- Renewals -->
+        <div class="card">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-icon" style="background:linear-gradient(135deg,#5B21B6,#4a1a94);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+              </div>
+              <h2 data-t="tab_subs">Subscriptions</h2>
+            </div>
+          </div>
+          <div id="customer-subs-list">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+
+      </div>
+
+      </div><!-- /cust-panel-overview -->
+
+      <!-- RENEWALS panel -->
+      <div id="cust-panel-renewals" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h2 data-t="tab_renewals">Renewals</h2></div>
+          <div id="customer-renewals-list"><div class="empty-state">Loading…</div></div>
+        </div>
+      </div>
+
+      <div id="cust-panel-assets" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-icon" style="background:linear-gradient(135deg,#3B5773,#2C4257);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              </div>
+              <h2>End User Devices</h2>
+            </div>
+          </div>
+          <div class="asset-health-grid" id="eu-health-summary">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2 data-t="card_my_assets">My Assets</h2></div>
+          <div id="customer-assets-list">
+            <div class="empty-state">Loading assets…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Center panel -->
+      <div id="cust-panel-dc" style="display:none;">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-icon" style="background:linear-gradient(135deg,#1C2F5E,#152348);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+              </div>
+              <h2>Data Center Devices</h2>
+            </div>
+          </div>
+          <div class="asset-health-grid" id="dc-health-summary">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><h2>Data Center Assets</h2></div>
+          <div id="dc-assets-list">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Customer Reports panel -->
+      <div id="cust-panel-reports" style="display:none;">
+        <div class="card">
+          <div class="card-header"><h2 data-t="card_visit_reports">Visit Reports</h2></div>
+          <div id="customer-reports-list">
+            <div class="empty-state">Loading reports…</div>
+          </div>
+        </div>
+      </div>
+
+      </div><!-- /content -->
+    </div><!-- /customer-view -->
+
+  </div><!-- /app-main-area -->
+</div><!-- /app-layout -->
+</div><!-- /app-screen -->
+
+<!-- CREATE/EDIT CONTRACT MODAL -->
+<div class="modal-overlay" id="contract-modal-overlay">
+  <div class="modal-box wide">
+    <h2 id="contract-modal-title">Create Contract</h2>
+    <div id="contract-form-error"></div>
+
+    <label>Assign to Customer</label>
+    <select id="cform-customer-id"></select>
+
+    <div class="form-2col">
+      <div>
+        <label>Contract Number</label>
+        <input type="text" id="cform-number" placeholder="AMC-2026-001"/>
+      </div>
+      <div>
+        <label>Contract Type</label>
+        <input type="text" id="cform-type" placeholder="Comprehensive AMC"/>
+      </div>
+    </div>
+
+    <div class="form-2col">
+      <div>
+        <label>Start Date</label>
+        <input type="date" id="cform-start"/>
+      </div>
+      <div>
+        <label>End Date</label>
+        <input type="date" id="cform-end"/>
+      </div>
+    </div>
+
+    <label>Customer Address</label>
+    <input type="text" id="cform-address" placeholder="Full billing/site address"/>
+
+    <div class="form-2col">
+      <div>
+        <label>Prepared By</label>
+        <input type="text" id="cform-prepared-by"/>
+      </div>
+      <div>
+        <label>Reviewed By</label>
+        <input type="text" id="cform-reviewed-by"/>
+      </div>
+    </div>
+
+    <label>Accepted By</label>
+    <input type="text" id="cform-accepted-by"/>
+
+    <label>Status</label>
+    <select id="cform-status">
+      <option value="active">Active</option>
+      <option value="expired">Expired</option>
+      <option value="cancelled">Cancelled</option>
+    </select>
+
+    <label>Contract PDF <span id="cform-existing-pdf-note" style="color:#64748B;font-weight:400;"></span></label>
+    <input type="file" id="cform-pdf-file" accept="application/pdf"/>
+
+    <div class="modal-actions">
+      <button onclick="saveContract()" id="contract-save-btn">Save</button>
+      <button class="secondary" onclick="closeContractModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE/EDIT ASSET MODAL (admin) -->
+<div class="modal-overlay" id="asset-modal-overlay">
+  <div class="modal-box wide">
+    <h2 id="asset-modal-title">Add Asset</h2>
+    <div id="asset-form-error"></div>
+
+    <label>Assign to Customer</label>
+    <select id="aform-customer-id"></select>
+
+    <label>Employee Name</label>
+    <input type="text" id="aform-employee-name" placeholder="e.g. Ahmed Al-Rashid"/>
+
+    <div class="form-2col">
+      <div>
+        <label>Asset Name / Description</label>
+        <input type="text" id="aform-name" placeholder="e.g. Dell Laptop"/>
+      </div>
+      <div>
+        <label>Category</label>
+        <select id="aform-category">
+          <option value="Desktop">Desktop</option>
+          <option value="Laptop">Laptop</option>
+          <option value="Printer">Printer</option>
+          <option value="Server">Server</option>
+          <option value="Network Device">Network Device</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-2col">
+      <div>
+        <label>Serial / Model</label>
+        <input type="text" id="aform-serial" placeholder="e.g. Dell OptiPlex 7090"/>
+      </div>
+      <div>
+        <label>Location</label>
+        <input type="text" id="aform-location" placeholder="e.g. Floor 2, Office 1"/>
+      </div>
+    </div>
+
+    <label>Asset Group</label>
+    <select id="aform-group">
+      <option value="end_user">End User Device</option>
+      <option value="data_center">Data Center Device</option>
+    </select>
+
+    <label>Notes</label>
+    <input type="text" id="aform-notes" placeholder="Optional notes"/>
+
+    <div class="modal-actions">
+      <button onclick="saveAsset()" id="asset-save-btn">Save</button>
+      <button class="secondary" onclick="closeAssetModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSET DETAIL MODAL (customer, read-only + history) -->
+<div class="modal-overlay" id="asset-detail-overlay">
+  <div class="modal-box wide">
+    <h2 id="asset-detail-title">Asset Detail</h2>
+    <div id="asset-detail-body"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeAssetDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- NEW VISIT REPORT MODAL (admin) -->
+<div class="modal-overlay" id="report-modal-overlay">
+  <div class="modal-box wide" style="max-width:720px; max-height:90vh; overflow-y:auto;">
+    <h2 id="report-modal-title">New Visit Report</h2>
+    <input type="hidden" id="rform-report-id"/>
+    <div id="report-form-error"></div>
+
+    <!-- Report type toggle -->
+    <div style="margin-bottom:16px;">
+      <label style="display:block;margin-bottom:8px;">Report Type</label>
+      <div style="display:flex;gap:0;border:1.5px solid var(--line);border-radius:8px;overflow:hidden;width:fit-content;">
+        <button type="button" class="report-type-btn active" data-type="end_user"
+          onclick="setReportType('end_user')"
+          style="padding:8px 20px;font-size:13px;font-weight:600;border:none;border-radius:0;
+            background:#F8FAFC;color:#475569;cursor:pointer;border-right:1.5px solid var(--line);
+            transition:background 0.15s,color 0.15s;">
+          &#x1F4BB; End User
+        </button>
+        <button type="button" class="report-type-btn" data-type="data_center"
+          onclick="setReportType('data_center')"
+          style="padding:8px 20px;font-size:13px;font-weight:600;border:none;border-radius:0;
+            background:#F8FAFC;color:#475569;cursor:pointer;
+            transition:background 0.15s,color 0.15s;">
+          &#x1F5A5;&#xFE0F; Data Center
+        </button>
+      </div>
+    </div>
+
+    <!-- Report header fields -->
+    <div class="form-2col">
+      <div>
+        <label>Customer</label>
+        <select id="rform-customer-id" onchange="onReportCustomerChange()"></select>
+      </div>
+      <div>
+        <label>Visit Number</label>
+        <input type="text" id="rform-visit-number" placeholder="e.g. Visit #1, Q1-2026"/>
+      </div>
+    </div>
+    <div class="form-2col">
+      <div>
+        <label>Visit Date</label>
+        <input type="date" id="rform-visit-date"/>
+      </div>
+      <div>
+        <label>Engineer Name</label>
+        <input type="text" id="rform-engineer"/>
+      </div>
+    </div>
+    <label>Overall Notes</label>
+    <input type="text" id="rform-overall-notes" placeholder="General observations for this visit"/>
+
+    <!-- Per-asset checklists — rendered dynamically -->
+    <div id="rform-assets-container" style="margin-top:18px;">
+      <div class="empty-state">Select a customer to load their assets.</div>
+    </div>
+
+    <div class="modal-actions" style="margin-top:16px;">
+      <button onclick="saveVisitReport()" id="report-save-btn">Save Report</button>
+      <button class="secondary" onclick="closeReportModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- REPORT DETAIL MODAL (admin + customer read-only) -->
+<div class="modal-overlay" id="report-detail-overlay">
+  <div class="modal-box wide" style="max-width:720px; max-height:90vh; overflow-y:auto;">
+    <h2 id="report-detail-title">Visit Report</h2>
+    <div id="report-detail-body"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeReportDetail()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE STATUS MODAL (admin) -->
+<div class="modal-overlay" id="status-modal-overlay">
+  <div class="modal-box">
+    <h2 id="status-modal-title">Add Status</h2>
+    <input type="hidden" id="sform-id"/>
+    <div id="status-form-error"></div>
+    <label>Status Name</label>
+    <input type="text" id="sform-name" placeholder="e.g. RAM Upgrade Required"/>
+    <label>Color</label>
+    <div class="color-picker" id="sform-color-picker">
+      <button type="button" class="color-btn" data-color="red"    onclick="selectStatusColor('red')"   ><span class="color-swatch" style="background:#C0392B;"></span>Red</button>
+      <button type="button" class="color-btn" data-color="amber"  onclick="selectStatusColor('amber')" ><span class="color-swatch" style="background:#92660F;"></span>Amber</button>
+      <button type="button" class="color-btn" data-color="blue"   onclick="selectStatusColor('blue')"  ><span class="color-swatch" style="background:#1E5F8E;"></span>Blue</button>
+      <button type="button" class="color-btn" data-color="purple" onclick="selectStatusColor('purple')"><span class="color-swatch" style="background:#5B21B6;"></span>Purple</button>
+      <button type="button" class="color-btn" data-color="teal"   onclick="selectStatusColor('teal')"  ><span class="color-swatch" style="background:#0EA5A0;"></span>Teal</button>
+      <button type="button" class="color-btn" data-color="slate"  onclick="selectStatusColor('slate')" ><span class="color-swatch" style="background:#475569;"></span>Slate</button>
+      <button type="button" class="color-btn" data-color="green"  onclick="selectStatusColor('green')" ><span class="color-swatch" style="background:#1A6B3A;"></span>Green</button>
+      <button type="button" class="color-btn" data-color="orange" onclick="selectStatusColor('orange')"><span class="color-swatch" style="background:#C2510E;"></span>Orange</button>
+      <button type="button" class="color-btn" data-color="pink"   onclick="selectStatusColor('pink')"  ><span class="color-swatch" style="background:#9D2C6E;"></span>Pink</button>
+      <button type="button" class="color-btn" data-color="brown"  onclick="selectStatusColor('brown')" ><span class="color-swatch" style="background:#6B3A2A;"></span>Brown</button>
+      <button type="button" class="color-btn" data-color="navy"   onclick="selectStatusColor('navy')"  ><span class="color-swatch" style="background:#1C2F5E;"></span>Navy</button>
+      <button type="button" class="color-btn" data-color="lime"   onclick="selectStatusColor('lime')"  ><span class="color-swatch" style="background:#4A7A1E;"></span>Lime</button>
+    </div>
+    <label>Icon</label>
+    <div class="icon-picker" id="sform-icon-picker"></div>
+    <label>Description (optional)</label>
+    <input type="text" id="sform-description" placeholder="Brief description"/>
+    <div class="modal-actions">
+      <button onclick="saveStatus()">Save</button>
+      <button class="secondary" onclick="closeStatusModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- STATUS ASSET DETAIL MODAL (customer) -->
+<div class="modal-overlay" id="status-detail-overlay">
+  <div class="modal-box wide">
+    <h2 id="status-detail-title">Assets</h2>
+    <div id="status-detail-body"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="document.getElementById('status-detail-overlay').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Hidden file input for logo uploads -->
+<input type="file" id="logo-file-input" accept="image/*" style="display:none;" onchange="handleLogoFileSelected(this)"/>
+
+<!-- STAFF MODAL -->
+<div class="modal-overlay" id="staff-modal-overlay">
+  <div class="modal-box wide">
+    <h2 id="staff-modal-title">Staff</h2>
+
+    <!-- Add new staff -->
+    <div style="display:flex;gap:8px;margin:14px 0 10px;">
+      <input type="email" id="staff-new-email" placeholder="staff@company.com"
+        style="flex:1;margin-bottom:0;" onkeydown="if(event.key==='Enter') addStaff()"/>
+      <button id="staff-add-btn" onclick="addStaff()" style="padding:8px 16px;white-space:nowrap;">+ Add</button>
+    </div>
+    <div id="staff-add-error" style="color:var(--rust);background:var(--rust-bg);border-radius:3px;
+      padding:8px 12px;font-size:13px;margin-bottom:10px;display:none;"></div>
+
+    <!-- Staff list -->
+    <div id="staff-list" style="max-height:400px;overflow-y:auto;">
+      <div class="empty-state">Loading…</div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeStaffModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- TAG DETAIL MODAL -->
+<div class="modal-overlay" id="tag-detail-modal-overlay">
+  <div class="modal-box wide">
+    <h2 id="tag-detail-modal-title"></h2>
+    <div id="tag-detail-modal-body" style="margin-top:14px;max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="document.getElementById('tag-detail-modal-overlay').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- SECTION DETAIL MODAL -->
+<div class="modal-overlay" id="section-detail-modal-overlay">
+  <div class="modal-box wide">
+    <h2 id="section-detail-modal-title"></h2>
+    <div id="section-detail-modal-body" style="margin-top:14px;max-height:60vh;overflow-y:auto;"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="document.getElementById('section-detail-modal-overlay').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- ASSET HEALTH MODAL -->
+<div class="modal-overlay" id="asset-health-modal-overlay">
+  <div class="modal-box wide">
+    <h2 id="asset-health-modal-title"></h2>
+    <div id="asset-health-modal-body" style="margin-top:12px;"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="document.getElementById('asset-health-modal-overlay').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTIFICATIONS MODAL -->
+<div class="modal-overlay" id="notif-modal-overlay">
+  <div class="modal-box wide">
+    <h2>🔔 Notifications</h2>
+    <div id="notif-modal-body">
+      <div class="empty-state">Loading…</div>
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="document.getElementById('notif-modal-overlay').classList.remove('open')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- RENEWAL MODAL -->
+<div class="modal-overlay" id="sub-modal-overlay">
+  <div class="modal-box wide">
+    <h2 id="sub-modal-title">Add Renewal</h2>
+    <div id="sub-form-error"></div>
+    <label>Customer</label>
+    <select id="sform-customer-id"></select>
+    <label>Software Name</label>
+    <input type="text" id="sform-software" placeholder="e.g. Microsoft 365"/>
+    <label>Vendor (optional)</label>
+    <input type="text" id="sform-vendor" placeholder="e.g. Microsoft"/>
+    <div class="form-2col">
+      <div>
+        <label>Start Date</label>
+        <input type="date" id="sform-start"/>
+      </div>
+      <div>
+        <label>End Date</label>
+        <input type="date" id="sform-end"/>
+      </div>
+    </div>
+    <label>Reference No. (optional)</label>
+    <input type="text" id="sform-reference" placeholder="e.g. INV-2026-001, QT-445"/>
+    <label>Notes (optional)</label>
+    <input type="text" id="sform-notes" placeholder="e.g. 25 licenses, auto-renews"/>
+    <div class="modal-actions">
+      <button onclick="saveSubscription()" id="sub-save-btn">Save</button>
+      <button class="secondary" onclick="closeSubModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- RESET PASSWORD MODAL -->
+<div class="modal-overlay" id="reset-pw-overlay">
+  <div class="modal-box" style="max-width:380px;">
+    <h2>Reset Password</h2>
+    <p id="reset-pw-user-name" style="font-size:13px;color:#8A8377;margin-bottom:16px;"></p>
+    <div id="reset-pw-error"></div>
+    <label>New Password</label>
+    <input type="password" id="reset-pw-input" placeholder="Min. 6 characters"/>
+    <label>Confirm Password</label>
+    <input type="password" id="reset-pw-confirm" placeholder="Repeat new password"/>
+    <div class="modal-actions">
+      <button onclick="saveResetPassword()" id="reset-pw-btn">Reset Password</button>
+      <button class="secondary" onclick="closeResetPasswordModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- CREATE/EDIT MODAL -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal-box">
+    <h2 id="modal-title">Create User</h2>
+    <div id="form-error"></div>
+
+    <div id="create-only-fields">
+      <label>Email (login)</label>
+      <input type="email" id="form-email"/>
+    </div>
+
+    <label>Full Name / Company Name</label>
+    <input type="text" id="form-name"/>
+    <label>Role</label>
+    <select id="form-role">
+      <option value="customer">Customer</option>
+      <option value="admin">Admin</option>
+    </select>
+    <label>Contact Person</label>
+    <input type="text" id="form-contact-person"/>
+    <label>Phone</label>
+    <input type="text" id="form-phone"/>
+    <label>Next Visit Date <span style="font-size:11px;color:#8A8377;">(customers only)</span></label>
+    <input type="date" id="form-next-visit-date"/>
+
+    <div class="modal-actions">
+      <button onclick="saveUser()" id="save-btn">Save</button>
+      <button class="secondary" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+
+  <!-- JS modules — load order matters -->
+  <script src="config.js"></script>
+  <script src="translations.js"></script>
+  <script src="admin-overview.js"></script>
+  <script src="admin-users.js"></script>
+  <script src="admin.js"></script>
+  <script src="status.js"></script>
+  <script src="visits.js"></script>
+  <script src="customer-dashboard.js"></script>
+  <script src="customer.js"></script>
+  <script src="pdf.js"></script>
+  <script src="subscriptions.js"></script>
+  <script src="tags.js"></script>
+
+</script>
+  <script src="auth.js"></script>
+</body>
+</html>

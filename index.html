@@ -1067,6 +1067,16 @@
     <label>Next Visit Date <span style="font-size:11px;color:#8A8377;">(customers only)</span></label>
     <input type="date" id="form-next-visit-date"/>
 
+    <div id="edit-logo-section" style="display:none;margin-top:4px;">
+      <label>Client Logo</label>
+      <button type="button" class="secondary" onclick="triggerLogoUpload(editingUserId)">Upload Logo</button>
+    </div>
+
+    <div id="edit-address-section" style="display:none;margin-top:4px;">
+      <label>Contract Address</label>
+      <button type="button" class="secondary" onclick="editClientAddress(editingUserId)">Edit Address</button>
+    </div>
+
     <div class="modal-actions">
       <button onclick="saveUser()" id="save-btn">Save</button>
       <button class="secondary" onclick="closeModal()">Cancel</button>

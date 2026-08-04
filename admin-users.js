@@ -26,7 +26,6 @@ async function loadClientsList() {
           <button class="secondary" onclick="openEditModal('${u.id}')">Edit</button>
           <button class="secondary" style="background:var(--accent);color:#fff;border-color:var(--accent);" onclick="viewAsCustomer('${u.id}')">Login as Client</button>
           <button class="secondary" onclick="openStaffModal('${u.id}', '${u.name.replace(/'/g, "\'")}')">Staff ${staffCount[u.id] ? `(${staffCount[u.id]})` : ''}</button>
-          <button class="secondary" onclick="triggerLogoUpload('${u.id}')">${u.logo_path ? 'Change Logo' : 'Upload Logo'}</button>
           <button class="secondary" onclick="toggleActive('${u.id}', ${u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>
           <button class="danger" onclick="deleteUser('${u.id}', '${u.name.replace(/'/g, "\'")}')">Delete</button>
         </div>
@@ -86,6 +85,18 @@ async function loadUsersList() {
   `).join('');
 }
 
+// ── Jump to the client's (most current) contract to edit its address ──
+async function editClientAddress(clientId) {
+  const { data: contracts, error } = await sb.from('contracts')
+    .select('id').eq('customer_id', clientId).order('end_date', { ascending: false }).limit(1);
+  if (error || !contracts || !contracts.length) {
+    alert('This client has no contract yet. Create one from the Contracts tab first.');
+    return;
+  }
+  closeModal();
+  openEditContractModal(contracts[0].id);
+}
+
 // ── Logo upload ──────────────────────────────────────────
 var logoUploadUserId = null;
 
@@ -137,6 +148,8 @@ function openCreateModal() {
   document.getElementById('form-phone').value = '';
   document.getElementById('form-next-visit-date').value = '';
   document.getElementById('form-error').style.display = 'none';
+  document.getElementById('edit-logo-section').style.display = 'none';
+  document.getElementById('edit-address-section').style.display = 'none';
   document.getElementById('modal-overlay').classList.add('open');
 }
 
@@ -155,6 +168,8 @@ async function openEditModal(userId) {
   document.getElementById('form-phone').value = u.phone || '';
   document.getElementById('form-next-visit-date').value = u.next_visit_date || '';
   document.getElementById('form-error').style.display = 'none';
+  document.getElementById('edit-logo-section').style.display = u.role === 'customer' ? 'block' : 'none';
+  document.getElementById('edit-address-section').style.display = u.role === 'customer' ? 'block' : 'none';
   document.getElementById('modal-overlay').classList.add('open');
 }
 

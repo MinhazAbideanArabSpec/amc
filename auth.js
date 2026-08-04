@@ -135,6 +135,7 @@ async function afterLogin() {
   }
 
   myProfile = profile;
+  sb.from('profiles').update({ last_login_at: new Date().toISOString() }).eq('id', user.id).then(() => {});
   loadSiteLogo();
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'block';

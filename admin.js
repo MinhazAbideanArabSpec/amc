@@ -247,6 +247,11 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function fmtDateTime(d) {
+  if (!d) return 'Never';
+  return new Date(d).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
 // ═══════════════════════════════════════════════════════
 //  ASSETS — Admin
 // ═══════════════════════════════════════════════════════

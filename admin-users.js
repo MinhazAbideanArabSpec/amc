@@ -8,8 +8,8 @@ async function loadClientsList() {
   const { data: clients, error } = await sb.from('profiles')
     .select('*').eq('role', 'customer').is('customer_id', null).order('name');
 
-  if (error) { tbody.innerHTML = `<tr><td colspan="4" class="empty-state">Error: ${error.message}</td></tr>`; return; }
-  if (!clients || !clients.length) { tbody.innerHTML = `<tr><td colspan="4" class="empty-state">No clients yet.</td></tr>`; return; }
+  if (error) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Error: ${error.message}</td></tr>`; return; }
+  if (!clients || !clients.length) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No clients yet.</td></tr>`; return; }
 
   const { data: allStaff } = await sb.from('profiles').select('customer_id').not('customer_id', 'is', null);
   const staffCount = {};
@@ -20,6 +20,7 @@ async function loadClientsList() {
       <td style="font-weight:600;">${u.name}</td>
       <td>${u.email}</td>
       <td><span class="badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+      <td style="font-size:12.5px;color:#64748B;">${fmtDateTime(u.last_login_at)}</td>
       <td>
         <div class="row-actions">
           <button class="secondary" onclick="openEditModal('${u.id}')">Edit</button>
@@ -43,11 +44,11 @@ async function loadUsersList() {
   const tbody = document.getElementById('users-tbody');
 
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Error loading users: ${error.message}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error loading users: ${error.message}</td></tr>`;
     return;
   }
   if (!users.length) {
-    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No users yet.</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No users yet.</td></tr>`;
     return;
   }
 
@@ -66,6 +67,7 @@ async function loadUsersList() {
       <td>${u.email}</td>
       <td><span class="badge ${u.role}">${u.role}</span></td>
       <td><span class="badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
+      <td style="font-size:12.5px;color:#64748B;">${fmtDateTime(u.last_login_at)}</td>
       <td>
         <div class="row-actions">
           <button class="secondary" onclick="openEditModal('${u.id}')">Edit</button>

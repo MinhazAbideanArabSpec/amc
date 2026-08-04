@@ -32,15 +32,40 @@ function loadSiteLogo() {
   });
 }
 
-// ── Client-side 24h session timeout (Supabase free tier has no server-side time-box) ──
-var SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+// ── Client-side session timeout (Supabase free tier has no server-side time-box) ──
+var SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000; // default 24h, overridden by loadSessionTimeoutSetting()
 
 function isSessionExpired() {
   const loginAt = localStorage.getItem('login_at');
   return loginAt !== null && (Date.now() - parseInt(loginAt, 10)) > SESSION_MAX_AGE_MS;
 }
 
-// Catches a tab left open across the 24h mark
+// Admin-configurable, stored as a plain-text hours value in the public 'logos' bucket
+async function loadSessionTimeoutSetting() {
+  try {
+    const { data } = sb.storage.from('logos').getPublicUrl('site/session-timeout-hours');
+    if (!data?.publicUrl) return;
+    const res = await fetch(data.publicUrl + '?t=' + Date.now());
+    if (!res.ok) return;
+    const hours = parseFloat((await res.text()).trim());
+    if (hours > 0) SESSION_MAX_AGE_MS = hours * 60 * 60 * 1000;
+  } catch (e) { /* keep default */ }
+}
+
+async function saveSessionTimeoutSetting() {
+  const input = document.getElementById('session-timeout-hours-input');
+  const hours = parseFloat(input.value);
+  if (!hours || hours <= 0) { alert('Enter a valid number of hours.'); return; }
+
+  const blob = new Blob([String(hours)], { type: 'text/plain' });
+  const { error } = await sb.storage.from('logos').upload('site/session-timeout-hours', blob, { upsert: true, contentType: 'text/plain' });
+  if (error) { alert('Failed to save: ' + error.message); return; }
+
+  SESSION_MAX_AGE_MS = hours * 60 * 60 * 1000;
+  alert('Session timeout updated to ' + hours + ' hour(s).');
+}
+
+// Catches a tab left open across the timeout mark
 setInterval(() => {
   if (myProfile && isSessionExpired()) {
     logout();
@@ -50,6 +75,7 @@ setInterval(() => {
 
 // ── Boot: restore session after ALL scripts have loaded ──
 window.addEventListener('load', async () => {
+  await loadSessionTimeoutSetting();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;
   if (isSessionExpired()) {

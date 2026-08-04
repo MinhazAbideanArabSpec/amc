@@ -232,10 +232,15 @@ async function loadCustomerSubscriptions(customerId) {
     .eq('customer_id', customerId)
     .order('end_date', { ascending: true });
 
+  const expiredEl = document.getElementById('istat-renewals-expired');
+  const soonEl     = document.getElementById('istat-renewals-soon');
+
   if (error || !subs || !subs.length) {
     const msg = '<div class="empty-state">No subscriptions found.</div>';
     if (tabEl)  tabEl.innerHTML  = msg;
     if (dashEl) dashEl.innerHTML = msg;
+    if (expiredEl) expiredEl.textContent = '0';
+    if (soonEl)    soonEl.textContent = '0';
     return;
   }
 
@@ -254,5 +259,17 @@ async function loadCustomerSubscriptions(customerId) {
     } else {
       dashEl.innerHTML = `<div class="sub-grid">` + urgent.map(s => subCardHtml(s, false, false)).join('') + `</div>`;
     }
+  }
+
+  // Hero tile: expired count and expiring-within-60-days count, shown separately
+  if (expiredEl || soonEl) {
+    let expiredCount = 0, soonCount = 0;
+    subs.forEach(s => {
+      const days = Math.round((new Date(s.end_date) - new Date()) / 86400000);
+      if (days < 0) expiredCount++;
+      else if (days < 60) soonCount++;
+    });
+    if (expiredEl) expiredEl.textContent = expiredCount;
+    if (soonEl)    soonEl.textContent = soonCount;
   }
 }

@@ -86,16 +86,12 @@
     .topbar .who b { color: #fff; font-weight: 600; }
     .topbar .who a { color: #C9D4DE; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.25); }
     .topbar .who a:hover { color: #fff; }
-    .content { padding: 24px 28px; max-width: 1320px; margin: 0 auto; }
-    #cust-panel-reports,
-    #cust-panel-assets,
-    #cust-panel-dc,
-    #cust-panel-reports,
-    #cust-panel-assets,
-    #cust-panel-dc,
-    #cust-panel-renewals,
-    #cust-panel-contract { max-width: 1140px; margin-left: auto; margin-right: auto; }
-    #customer-view > .nav-tabs { max-width: 1140px; margin-left: auto; margin-right: auto; }
+    .content { padding: 0; }
+    #view-as-banner { margin: 16px 28px 0; }
+
+    /* ── Sidebar navigation + content shell ── */
+    .view-shell { display: flex; align-items: stretch; width: 100%; }
+    .tab-content { flex: 1; min-width: 0; padding: 24px 28px; }
 
     /* ── Card / table ── */
     .card {
@@ -159,15 +155,32 @@
 
     .empty-state { text-align: center; padding: 44px; color: #9CA3AF; font-size: 13.5px; }
 
-    /* ── Nav tabs (admin) ── */
-    .nav-tabs { display: flex; gap: 2px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
-    .nav-tab {
-      padding: 10px 4px; margin-right: 22px; font-size: 13.5px; font-weight: 600;
-      cursor: pointer; color: #9CA3AF; background: transparent; border: none;
-      border-bottom: 2px solid transparent; border-radius: 0;
+    /* ── Sidebar nav tabs (flush to the left edge, full height) ── */
+    .nav-tabs {
+      flex: 0 0 216px; width: 216px;
+      display: flex; flex-direction: column; gap: 2px;
+      background: var(--ink); border-radius: 0; padding: 20px 12px;
+      position: sticky; top: 0; align-self: flex-start; min-height: 100vh;
     }
-    .nav-tab.active { color: var(--ink); border-bottom-color: var(--accent); background: transparent; }
-    .nav-tab:not(.active):hover { color: var(--ink-soft); background: transparent; }
+    .nav-tab {
+      display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;
+      padding: 10px 14px; font-size: 13.5px; font-weight: 600;
+      cursor: pointer; color: #9CA3AF; background: transparent;
+      border: none; border-left: 3px solid transparent; border-radius: 6px;
+    }
+    .nav-tab-icon { width: 18px; height: 18px; flex-shrink: 0; }
+    .nav-tab.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: var(--accent); }
+    .nav-tab:not(.active):hover { color: #E5E7EB; background: rgba(255,255,255,0.05); }
+
+    @media (max-width: 760px) {
+      .view-shell { flex-direction: column; }
+      .nav-tabs {
+        flex-direction: row; width: 100%; flex-basis: auto;
+        overflow-x: auto; position: static; min-height: auto; gap: 4px;
+      }
+      .nav-tab { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; }
+      .nav-tab.active { border-left-color: transparent; border-bottom-color: var(--accent); }
+    }
 
     /* ── Contract card (customer view) ── */
     .contract-block { border: 1px solid var(--line); border-radius: 4px; padding: 16px 20px; margin-bottom: 12px; }
@@ -394,7 +407,8 @@
 
     /* ── RTL support ── */
     .rtl { direction: rtl; font-family: 'Noto Sans Arabic', 'Source Serif 4', serif; }
-    .rtl .nav-tabs { flex-direction: row-reverse; }
+    .rtl .nav-tab { flex-direction: row-reverse; text-align: right; border-left: none; border-right: 3px solid transparent; }
+    .rtl .nav-tab.active { border-right-color: var(--accent); border-left-color: transparent; }
     .rtl .card-header { flex-direction: row-reverse; }
     .rtl .status-tile { border-left: none; border-right: 4px solid var(--ink-soft); }
     .rtl .status-tile.c-red    { border-right-color: var(--c-red);    border-left: none; }
@@ -422,7 +436,7 @@
     .rtl .st-tile-head { flex-direction: row-reverse; }
 
     /* ── Icon stat cards ── */
-    .icon-stat-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 0; position: relative; z-index: 1; }
+    .icon-stat-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 12px; margin-bottom: 0; position: relative; z-index: 1; }
     .icon-stat-card {
       background: rgba(255,255,255,0.08);
       backdrop-filter: blur(12px);

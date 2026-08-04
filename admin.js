@@ -474,10 +474,9 @@ function renderAssetDonut(counts, total) {
     return `
       <div onclick="${hasAssets ? `openAssetHealthModal('${label}')` : ''}"
         style="
-        flex: 0 0 calc(50% - 6px);
-        aspect-ratio: 1;
+        height: 132px;
         border-radius: 8px;
-        padding: 20px;
+        padding: 12px;
         background: ${active ? style.bg : '#F8FAFC'};
         border: 1.5px solid ${active ? style.hex : '#E2E8F0'};
         display: flex;
@@ -488,15 +487,15 @@ function renderAssetDonut(counts, total) {
         box-sizing: border-box;
         ${hasAssets ? 'cursor:pointer;transition:opacity 0.15s;' : ''}
       " ${hasAssets ? 'onmouseover="this.style.opacity=\'0.8\'" onmouseout="this.style.opacity=\'1\'"' : ''}>
-        <div style="font-size:40px;font-weight:800;color:${active ? style.hex : '#94A3B8'};line-height:1;">${count}</div>
-        <div style="font-size:12px;font-weight:700;color:${active ? style.hex : '#94A3B8'};margin-top:8px;">${label}</div>
-        <div style="font-size:11px;color:${active ? style.hex + 'AA' : '#B0BAC6'};margin-top:3px;">${pct}%</div>
-        ${hasAssets ? `<div style="font-size:10px;color:${style.hex}99;margin-top:6px;">Tap to view →</div>` : ''}
+        <div style="font-size:24px;font-weight:800;color:${active ? style.hex : '#94A3B8'};line-height:1;">${count}</div>
+        <div style="font-size:10.5px;font-weight:700;color:${active ? style.hex : '#94A3B8'};margin-top:6px;">${label}</div>
+        <div style="font-size:10px;color:${active ? style.hex + 'AA' : '#B0BAC6'};margin-top:2px;">${pct}%</div>
+        ${hasAssets ? `<div style="font-size:9px;color:${style.hex}99;margin-top:4px;">Tap to view →</div>` : ''}
       </div>`;
   }).join('');
 
   donutEl.innerHTML = `
-    <div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;">${tiles}</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:10px;">${tiles}</div>
     <div style="font-size:11.5px;color:#8A8377;text-align:right;">${total} assets total</div>`;
 }
 

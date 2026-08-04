@@ -78,20 +78,51 @@
 
     <!-- ADMIN VIEW -->
     <div id="admin-view" style="display:none;">
-
+     <div class="view-shell">
       <div class="nav-tabs">
-        <button class="nav-tab active" id="nav-tab-overview" onclick="switchAdminTab('overview')">Dashboard</button>
-        <button class="nav-tab" id="nav-tab-clients" onclick="switchAdminTab('clients')">Clients</button>
-        <button class="nav-tab" id="nav-tab-users" onclick="switchAdminTab('users')">Users</button>
-        <button class="nav-tab" id="nav-tab-contracts" onclick="switchAdminTab('contracts')">Contracts</button>
-        <button class="nav-tab" id="nav-tab-assets" onclick="switchAdminTab('assets')">Assets</button>
-        <button class="nav-tab" id="nav-tab-reports" onclick="switchAdminTab('reports')">Visit Reports</button>
-        <button class="nav-tab" id="nav-tab-status" onclick="switchAdminTab('status')">Status</button>
-        <button class="nav-tab" id="nav-tab-subs" onclick="switchAdminTab('subs')">Renewals</button>
-        <button class="nav-tab" id="nav-tab-tags" onclick="switchAdminTab('tags')">Asset Summary</button>
-        <button class="nav-tab" id="nav-tab-settings" onclick="switchAdminTab('settings')">Settings</button>
+        <button class="nav-tab active" id="nav-tab-overview" onclick="switchAdminTab('overview')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-tab" id="nav-tab-clients" onclick="switchAdminTab('clients')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M6 21V7a1 1 0 011-1h4a1 1 0 011 1v14M14 21V4a1 1 0 011-1h4a1 1 0 011 1v17M9 9h.01M9 13h.01M17 8h.01M17 12h.01M17 16h.01"/></svg>
+          <span>Clients</span>
+        </button>
+        <button class="nav-tab" id="nav-tab-users" onclick="switchAdminTab('users')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 20c0-3.3 3.1-6 7-6s7 2.7 7 6"/><circle cx="17" cy="9" r="2.3"/><path stroke-linecap="round" stroke-linejoin="round" d="M15.5 14.2c2.6.4 4.5 2.3 4.5 4.8"/></svg>
+          <span>Users</span>
+        </button>
+        <button class="nav-tab" id="nav-tab-contracts" onclick="switchAdminTab('contracts')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M8 3h6l5 5v11a2 2 0 01-2 2H8a2 2 0 01-2-2V5a2 2 0 012-2z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 3v5h5"/></svg>
+          <span>Contracts</span>
+        </button>
+        <button class="nav-tab" id="nav-tab-assets" onclick="switchAdminTab('assets')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8l-9-5-9 5 9 5 9-5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 8v8l9 5 9-5V8"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13v8"/></svg>
+          <span>Assets</span>
+        </button>
+        <button class="nav-tab" id="nav-tab-reports" onclick="switchAdminTab('reports')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          <span>Visit Reports</span>
+        </button>
+        <button class="nav-tab" id="nav-tab-status" onclick="switchAdminTab('status')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M5 3v18M5 4h11l-2 4 2 4H5"/></svg>
+          <span>Status</span>
+        </button>
+        <button class="nav-tab" id="nav-tab-subs" onclick="switchAdminTab('subs')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+          <span>Renewals</span>
+        </button>
+        <button class="nav-tab" id="nav-tab-tags" onclick="switchAdminTab('tags')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M20.59 13.41L11 3.83A2 2 0 009.59 3.24L4 3a1 1 0 00-1 1l.24 5.59a2 2 0 00.59 1.41l9.58 9.58a2 2 0 002.83 0l4.35-4.35a2 2 0 000-2.82z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+          <span>Asset Summary</span>
+        </button>
+        <button class="nav-tab" id="nav-tab-settings" onclick="switchAdminTab('settings')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          <span>Settings</span>
+        </button>
       </div>
 
+      <div class="tab-content">
       <!-- Overview panel -->
       <div id="admin-panel-overview">
 
@@ -347,21 +378,41 @@
           </div>
         </div>
       </div>
-
+      </div>
+     </div>
     </div>
 
     <!-- CUSTOMER VIEW -->
     <div id="customer-view" style="display:none;">
-
+     <div class="view-shell">
       <div class="nav-tabs">
-        <button class="nav-tab active" id="cust-tab-overview" onclick="switchCustomerTab('overview')" data-t="tab_overview">Dashboard</button>
-        <button class="nav-tab" id="cust-tab-reports" onclick="switchCustomerTab('reports')" data-t="tab_reports">Visit Reports</button>
-        <button class="nav-tab" id="cust-tab-assets" onclick="switchCustomerTab('assets')" data-t="tab_assets">Assets</button>
-        <button class="nav-tab" id="cust-tab-dc" onclick="switchCustomerTab('dc')" data-t="tab_dc">Data Center</button>
-        <button class="nav-tab" id="cust-tab-renewals" onclick="switchCustomerTab('renewals')" data-t="tab_renewals">Renewals</button>
-        <button class="nav-tab" id="cust-tab-contract" onclick="switchCustomerTab('contract')" data-t="tab_contract">Contract</button>
+        <button class="nav-tab active" id="cust-tab-overview" onclick="switchCustomerTab('overview')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 001 1h4v-6h4v6h4a1 1 0 001-1V10"/></svg>
+          <span data-t="tab_overview">Dashboard</span>
+        </button>
+        <button class="nav-tab" id="cust-tab-reports" onclick="switchCustomerTab('reports')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+          <span data-t="tab_reports">Visit Reports</span>
+        </button>
+        <button class="nav-tab" id="cust-tab-assets" onclick="switchCustomerTab('assets')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M21 8l-9-5-9 5 9 5 9-5z"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 8v8l9 5 9-5V8"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 13v8"/></svg>
+          <span data-t="tab_assets">Assets</span>
+        </button>
+        <button class="nav-tab" id="cust-tab-dc" onclick="switchCustomerTab('dc')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+          <span data-t="tab_dc">Data Center</span>
+        </button>
+        <button class="nav-tab" id="cust-tab-renewals" onclick="switchCustomerTab('renewals')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+          <span data-t="tab_renewals">Renewals</span>
+        </button>
+        <button class="nav-tab" id="cust-tab-contract" onclick="switchCustomerTab('contract')">
+          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+          <span data-t="tab_contract">Contract</span>
+        </button>
       </div>
 
+      <div class="tab-content">
       <!-- Overview panel -->
       <div id="cust-panel-overview">
 
@@ -432,11 +483,31 @@
               <div class="icon-stat-sub" id="istat-notif-sub">Tap to view</div>
             </div>
 
+            <!-- 5. Renewals needing attention (expired + expiring within 60 days, shown separately) -->
+            <div class="icon-stat-card">
+              <div class="icon-stat-icon">
+                <svg fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 5v2m0 4v2m0 4v2M5 5a2 2 0 00-2 2v3a2 2 0 110 4v3a2 2 0 002 2h14a2 2 0 002-2v-3a2 2 0 110-4V7a2 2 0 00-2-2H5z"/></svg>
+              </div>
+              <div style="display:flex;align-items:flex-end;gap:10px;">
+                <div>
+                  <div class="icon-stat-value" id="istat-renewals-expired">—</div>
+                  <div class="icon-stat-sub" style="margin-top:0;">Expired</div>
+                </div>
+                <div style="width:1px;align-self:stretch;background:rgba(255,255,255,0.18);"></div>
+                <div>
+                  <div class="icon-stat-value" id="istat-renewals-soon">—</div>
+                  <div class="icon-stat-sub" style="margin-top:0;">&lt;60d</div>
+                </div>
+              </div>
+              <div class="icon-stat-label" style="margin-top:4px;">Renewals</div>
+            </div>
+
           </div>
         </div> <!-- end .dash-hero-wrap -->
 
-        <!-- Contract overview -->
-        <div class="card" style="margin-bottom:16px;">
+        <!-- Contract overview + Renewals -->
+        <div class="dash-row" style="margin-bottom:16px;">
+        <div class="card" style="margin-bottom:0;">
           <div class="card-header">
             <div style="display:flex;align-items:center;gap:10px;">
               <div class="card-icon" style="background:linear-gradient(135deg,#3B5773,#2C4257);">
@@ -456,7 +527,7 @@
         </div>
 
         <!-- My Subscriptions tile -->
-        <div class="card">
+        <div class="card" style="margin-bottom:0;">
           <div class="card-header">
             <div style="display:flex;align-items:center;gap:10px;">
               <div class="card-icon" style="background:linear-gradient(135deg,#5B21B6,#4a1a94);">
@@ -470,9 +541,11 @@
             <div class="empty-state">Loading…</div>
           </div>
         </div>
+        </div>
 
-        <!-- Visit dates tile -->
-        <div class="card" style="margin-bottom:16px;">
+        <!-- Visit dates + Asset Health -->
+        <div class="dash-row" style="margin-bottom:16px;">
+        <div class="card dash-card" style="margin-bottom:0;">
           <div class="card-header">
             <div style="display:flex;align-items:center;gap:10px;">
               <div class="card-icon" style="background:linear-gradient(135deg,#0EA5A0,#0c908b);">
@@ -493,22 +566,23 @@
           </div>
         </div>
 
-        <!-- Asset status tiles -->
-
-        <div class="dash-row" style="grid-template-columns:1fr 1fr;">
-          <div class="card dash-card">
-            <div class="card-header">
-              <div style="display:flex;align-items:center;gap:10px;">
-                <div class="card-icon" style="background:linear-gradient(135deg,#1A6B3A,#145730);">
-                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
-                </div>
-                <h2 data-t="card_asset_health">Asset Health</h2>
+        <div class="card dash-card" style="margin-bottom:0;">
+          <div class="card-header">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div class="card-icon" style="background:linear-gradient(135deg,#1A6B3A,#145730);">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
               </div>
-            </div>
-            <div class="donut-wrap" id="asset-donut-wrap">
-              <div class="empty-state">Loading…</div>
+              <h2 data-t="card_asset_health">Asset Health</h2>
             </div>
           </div>
+          <div class="donut-wrap" id="asset-donut-wrap">
+            <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+        </div>
+
+        <!-- Asset Summary -->
+        <div class="dash-row" style="grid-template-columns:1fr;">
           <div class="card dash-card">
             <div class="card-header">
               <div style="display:flex;align-items:center;gap:10px;">
@@ -519,7 +593,8 @@
               </div>
             </div>
             <!-- End User section -->
-            <div style="margin-bottom:6px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+            <div style="margin-bottom:6px;padding-right:20px;border-right:1px solid var(--line);">
               <div style="display:flex;align-items:center;gap:8px;padding:8px 0 6px;">
                 <div style="width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0;"></div>
                 <span style="font-size:11px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:0.07em;">End User Devices</span>
@@ -527,12 +602,13 @@
               <div id="dash-issue-tags-panel-eu"><div class="empty-state">Loading…</div></div>
             </div>
             <!-- Data Center section -->
-            <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--line);">
+            <div style="margin-bottom:6px;">
               <div style="display:flex;align-items:center;gap:8px;padding:8px 0 6px;">
                 <div style="width:8px;height:8px;border-radius:50%;background:#3730A3;flex-shrink:0;"></div>
                 <span style="font-size:11px;font-weight:700;color:#3730A3;text-transform:uppercase;letter-spacing:0.07em;">Data Center Devices</span>
               </div>
               <div id="dash-issue-tags-panel-dc"><div class="empty-state">Loading…</div></div>
+            </div>
             </div>
           </div>
         </div>
@@ -609,10 +685,6 @@
 
       </div>
 
-    </div>
-
-  </div>
-</div>
       <div id="cust-panel-assets" style="display:none;">
         <div class="card" style="margin-bottom:16px;">
           <div class="card-header">
@@ -682,7 +754,8 @@
           </div>
         </div>
       </div>
-
+      </div>
+     </div>
     </div>
 
   </div>

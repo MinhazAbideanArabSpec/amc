@@ -86,7 +86,7 @@
     .topbar .who b { color: #fff; font-weight: 600; }
     .topbar .who a { color: #C9D4DE; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.25); }
     .topbar .who a:hover { color: #fff; }
-    .content { padding: 24px 28px; max-width: 1040px; margin: 0 auto; }
+    .content { padding: 24px 28px; max-width: 1320px; margin: 0 auto; }
     #cust-panel-reports,
     #cust-panel-assets,
     #cust-panel-dc,
@@ -114,7 +114,7 @@
       letter-spacing: 0.06em; color: #8A8377; font-weight: 600; border-bottom: 1px solid var(--line);
       font-family: 'Inter', sans-serif;
     }
-    td { padding: 13px 12px; border-bottom: 1px solid var(--line); color: var(--ink); }
+    td { padding: 15px 14px; border-bottom: 1px solid var(--line); color: var(--ink); }
     tr:last-child td { border-bottom: none; }
     tbody tr:hover { background: #FBFAF8; }
 

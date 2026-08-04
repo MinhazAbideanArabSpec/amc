@@ -99,7 +99,6 @@ function renderSubsTable() {
           ${th('software_name', 'Software')}
           ${th('vendor', 'Vendor')}
           ${th('customer', 'Customer')}
-          ${th('start_date', 'Start Date')}
           ${th('end_date', 'Expiration')}
           ${th('status', 'Status')}
           <th>Actions</th>
@@ -113,7 +112,6 @@ function renderSubsTable() {
               <td style="font-weight:600;">${s.software_name}</td>
               <td>${s.vendor || '—'}</td>
               <td>${s.profiles?.name || '—'}</td>
-              <td>${fmtDate(s.start_date)}</td>
               <td>${fmtDate(s.end_date)}</td>
               <td><span class="sub-badge ${st.cls}">${st.label}</span></td>
               <td>

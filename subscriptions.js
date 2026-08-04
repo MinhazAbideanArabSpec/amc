@@ -31,6 +31,9 @@ function subCardHtml(s, showCustomer, showActions) {
 }
 
 // ── Admin ────────────────────────────────────────────────────
+var _subsData = [];
+var _subsSort = { key: 'end_date', dir: 'asc' };
+
 async function loadSubscriptions() {
   const el = document.getElementById('subs-list');
   el.innerHTML = '<div class="empty-state">Loading…</div>';
@@ -50,27 +53,79 @@ async function loadSubscriptions() {
 
   const { data: subs, error } = await query;
   if (error) { el.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`; return; }
-  if (!subs || !subs.length) { el.innerHTML = `<div class="empty-state">No subscriptions yet. Click + Add Subscription to get started.</div>`; return; }
 
-  // Group: expiring, active, expired
-  const expiring = subs.filter(s => subStatus(s.end_date).cls === 'expiring');
-  const active   = subs.filter(s => subStatus(s.end_date).cls === 'active');
-  const expired  = subs.filter(s => subStatus(s.end_date).cls === 'expired');
+  _subsData = subs || [];
+  renderSubsTable();
+}
 
-  let html = '';
-  if (expiring.length) {
-    html += `<div style="font-size:11px;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">⚠ Expiring Soon (${expiring.length})</div>`;
-    html += `<div class="sub-grid" style="margin-bottom:20px;">` + expiring.map(s => subCardHtml(s, true, true)).join('') + `</div>`;
+function subSortValue(s, key) {
+  if (key === 'customer')      return (s.profiles?.name || '').toLowerCase();
+  if (key === 'vendor')        return (s.vendor || '').toLowerCase();
+  if (key === 'software_name') return (s.software_name || '').toLowerCase();
+  if (key === 'status') {
+    const cls = subStatus(s.end_date).cls;
+    return cls === 'expired' ? 0 : cls === 'expiring' ? 1 : 2;
   }
-  if (active.length) {
-    html += `<div style="font-size:11px;font-weight:700;color:var(--sage);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Active (${active.length})</div>`;
-    html += `<div class="sub-grid" style="margin-bottom:20px;">` + active.map(s => subCardHtml(s, true, true)).join('') + `</div>`;
+  return s[key] || '';
+}
+
+function sortSubsBy(key) {
+  if (_subsSort.key === key) {
+    _subsSort.dir = _subsSort.dir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _subsSort.key = key;
+    _subsSort.dir = 'asc';
   }
-  if (expired.length) {
-    html += `<div style="font-size:11px;font-weight:700;color:var(--rust);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:10px;">Expired (${expired.length})</div>`;
-    html += `<div class="sub-grid">` + expired.map(s => subCardHtml(s, true, true)).join('') + `</div>`;
-  }
-  el.innerHTML = html;
+  renderSubsTable();
+}
+
+function renderSubsTable() {
+  const el = document.getElementById('subs-list');
+  if (!_subsData.length) { el.innerHTML = `<div class="empty-state">No subscriptions yet. Click + Add Subscription to get started.</div>`; return; }
+
+  const sorted = [..._subsData].sort((a, b) => {
+    const av = subSortValue(a, _subsSort.key), bv = subSortValue(b, _subsSort.key);
+    const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+    return _subsSort.dir === 'asc' ? cmp : -cmp;
+  });
+
+  const arrow = key => _subsSort.key === key ? (_subsSort.dir === 'asc' ? ' ↑' : ' ↓') : '';
+  const th = (key, label) => `<th style="cursor:pointer;user-select:none;" onclick="sortSubsBy('${key}')">${label}${arrow(key)}</th>`;
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          ${th('software_name', 'Software')}
+          ${th('vendor', 'Vendor')}
+          ${th('customer', 'Customer')}
+          ${th('start_date', 'Start Date')}
+          ${th('end_date', 'Expiration')}
+          ${th('status', 'Status')}
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${sorted.map(s => {
+          const st = subStatus(s.end_date);
+          return `
+            <tr>
+              <td style="font-weight:600;">${s.software_name}</td>
+              <td>${s.vendor || '—'}</td>
+              <td>${s.profiles?.name || '—'}</td>
+              <td>${fmtDate(s.start_date)}</td>
+              <td>${fmtDate(s.end_date)}</td>
+              <td><span class="sub-badge ${st.cls}">${st.label}</span></td>
+              <td>
+                <div class="row-actions">
+                  <button class="secondary" onclick="openEditSubModal('${s.id}')">Edit</button>
+                  <button class="danger" onclick="deleteSub('${s.id}','${s.software_name.replace(/'/g,"\\'")}')">Delete</button>
+                </div>
+              </td>
+            </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
 }
 
 // ── Create/Edit Modal ────────────────────────────────────────

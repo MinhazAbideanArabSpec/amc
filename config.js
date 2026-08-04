@@ -32,8 +32,30 @@ function loadSiteLogo() {
   });
 }
 
+// ── Client-side 24h session timeout (Supabase free tier has no server-side time-box) ──
+var SESSION_MAX_AGE_MS = 24 * 60 * 60 * 1000;
+
+function isSessionExpired() {
+  const loginAt = localStorage.getItem('login_at');
+  return loginAt !== null && (Date.now() - parseInt(loginAt, 10)) > SESSION_MAX_AGE_MS;
+}
+
+// Catches a tab left open across the 24h mark
+setInterval(() => {
+  if (myProfile && isSessionExpired()) {
+    logout();
+    alert('Your session has expired. Please sign in again.');
+  }
+}, 5 * 60 * 1000);
+
 // ── Boot: restore session after ALL scripts have loaded ──
 window.addEventListener('load', async () => {
   const { data: { session } } = await sb.auth.getSession();
-  if (session) await afterLogin();
+  if (!session) return;
+  if (isSessionExpired()) {
+    localStorage.removeItem('login_at');
+    await sb.auth.signOut();
+    return;
+  }
+  await afterLogin();
 });

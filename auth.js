@@ -77,6 +77,7 @@ async function verifyOtp() {
     return;
   }
 
+  localStorage.setItem('login_at', Date.now().toString());
   await afterLogin();
 }
 
@@ -110,6 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function logout() {
+  localStorage.removeItem('login_at');
   await sb.auth.signOut();
   document.getElementById('app-screen').style.display = 'none';
   document.getElementById('admin-view').style.display = 'none';

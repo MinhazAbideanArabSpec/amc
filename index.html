@@ -89,22 +89,11 @@
         <button class="nav-tab" id="nav-tab-status" onclick="switchAdminTab('status')">Status</button>
         <button class="nav-tab" id="nav-tab-subs" onclick="switchAdminTab('subs')">Renewals</button>
         <button class="nav-tab" id="nav-tab-tags" onclick="switchAdminTab('tags')">Asset Summary</button>
+        <button class="nav-tab" id="nav-tab-settings" onclick="switchAdminTab('settings')">Settings</button>
       </div>
 
       <!-- Overview panel -->
       <div id="admin-panel-overview">
-
-        <!-- Portal Logo -->
-        <div class="card" style="margin-bottom:16px;">
-          <div class="card-header">
-            <h2>🖼️ Portal Logo</h2>
-            <button class="secondary" onclick="triggerSiteLogoUpload()">Upload Logo</button>
-          </div>
-          <div style="display:flex;align-items:center;gap:14px;">
-            <img class="site-logo-img" alt="" style="height:48px;width:auto;max-width:160px;object-fit:contain;border-radius:6px;background:#F1F5F9;padding:6px;display:none;"/>
-            <span class="site-logo-empty-msg" style="color:#94A3B8;font-size:13px;">No logo uploaded yet.</span>
-          </div>
-        </div>
 
         <!-- Stat cards -->
         <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px;">
@@ -326,6 +315,20 @@
           </div>
           <div id="tags-panel-body">
             <div class="empty-state">Loading…</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings panel -->
+      <div id="admin-panel-settings" style="display:none;">
+        <div class="card">
+          <div class="card-header">
+            <h2>🖼️ Portal Logo</h2>
+            <button class="secondary" onclick="triggerSiteLogoUpload()">Upload Logo</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <img class="site-logo-img" alt="" style="height:48px;width:auto;max-width:160px;object-fit:contain;border-radius:6px;background:#F1F5F9;padding:6px;display:none;"/>
+            <span class="site-logo-empty-msg" style="color:#94A3B8;font-size:13px;">No logo uploaded yet.</span>
           </div>
         </div>
       </div>

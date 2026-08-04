@@ -193,7 +193,7 @@ function switchCustomerTab(tab) {
 
 // ── Admin: switch tabs ──
 function switchAdminTab(tab) {
-  ['overview','clients','users','contracts','assets','reports','status','subs','tags'].forEach(t => {
+  ['overview','clients','users','contracts','assets','reports','status','subs','tags','settings'].forEach(t => {
     document.getElementById(`nav-tab-${t}`)?.classList.toggle('active', t === tab);
     const panel = document.getElementById(`admin-panel-${t}`);
     if (panel) panel.style.display = t === tab ? 'block' : 'none';

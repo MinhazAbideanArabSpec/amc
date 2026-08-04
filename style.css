@@ -94,8 +94,8 @@
     #cust-panel-assets,
     #cust-panel-dc,
     #cust-panel-renewals,
-    #cust-panel-contract { max-width: 860px; margin-left: auto; margin-right: auto; }
-    #customer-view > .nav-tabs { max-width: 860px; margin-left: auto; margin-right: auto; }
+    #cust-panel-contract { max-width: 1140px; margin-left: auto; margin-right: auto; }
+    #customer-view > .nav-tabs { max-width: 1140px; margin-left: auto; margin-right: auto; }
 
     /* ── Card / table ── */
     .card {

@@ -133,6 +133,7 @@ async function afterLogin() {
   }
 
   myProfile = profile;
+  loadSiteLogo();
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app-screen').style.display = 'block';
   document.getElementById('who-name').textContent = profile.name;

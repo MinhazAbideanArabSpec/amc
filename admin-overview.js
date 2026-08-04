@@ -1,5 +1,33 @@
 // admin-overview.js — dashboard overview
 
+// ── Admin: upload the site-wide ArabSpec logo ────────────
+function triggerSiteLogoUpload() {
+  document.getElementById('site-logo-file-input').click();
+}
+
+async function handleSiteLogoFileSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    alert('Please select an image file.');
+    input.value = '';
+    return;
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    alert('Logo must be under 2MB.');
+    input.value = '';
+    return;
+  }
+
+  const { error: uploadError } = await sb.storage.from('logos').upload('site/logo', file, { upsert: true });
+  if (uploadError) { alert('Upload failed: ' + uploadError.message); input.value = ''; return; }
+
+  input.value = '';
+  loadSiteLogo();
+  alert('Logo uploaded successfully.');
+}
+
 // admin.js — admin overview, users, contracts, assets
 // ── Admin: load overview stats ───────────────────────────
 async function loadAdminOverview() {

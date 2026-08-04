@@ -16,6 +16,22 @@ function getCustomerId() {
   return myProfile?.customer_id || myProfile?.id;
 }
 
+// ── Site-wide ArabSpec logo (stored at a fixed path in the 'logos' bucket) ──
+function loadSiteLogo() {
+  const { data } = sb.storage.from('logos').getPublicUrl('site/logo');
+  if (!data?.publicUrl) return;
+  const url = data.publicUrl + '?t=' + Date.now();
+  document.querySelectorAll('.site-logo-img').forEach(img => {
+    img.onload = () => {
+      img.style.display = 'inline-block';
+      const empty = img.parentElement.querySelector('.site-logo-empty-msg');
+      if (empty) empty.style.display = 'none';
+    };
+    img.onerror = () => { img.style.display = 'none'; };
+    img.src = url;
+  });
+}
+
 // ── Boot: restore session after ALL scripts have loaded ──
 window.addEventListener('load', async () => {
   const { data: { session } } = await sb.auth.getSession();

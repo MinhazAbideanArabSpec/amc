@@ -46,7 +46,10 @@
 <!-- APP -->
 <div id="app-screen">
   <div class="topbar">
-    <h1>ArabSpec AMC Portal</h1>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <img class="site-logo-img" alt="ArabSpec" style="height:34px;width:auto;object-fit:contain;background:#fff;border-radius:6px;padding:3px 6px;display:none;"/>
+      <h1>ArabSpec AMC Portal</h1>
+    </div>
     <div style="display:flex;align-items:center;gap:16px;">
       <div id="lang-toggle" style="display:none;">
         <button class="lang-btn" id="lang-btn-en" onclick="setLanguage('en')">EN</button>
@@ -90,6 +93,18 @@
 
       <!-- Overview panel -->
       <div id="admin-panel-overview">
+
+        <!-- Portal Logo -->
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-header">
+            <h2>🖼️ Portal Logo</h2>
+            <button class="secondary" onclick="triggerSiteLogoUpload()">Upload Logo</button>
+          </div>
+          <div style="display:flex;align-items:center;gap:14px;">
+            <img class="site-logo-img" alt="" style="height:48px;width:auto;max-width:160px;object-fit:contain;border-radius:6px;background:#F1F5F9;padding:6px;display:none;"/>
+            <span class="site-logo-empty-msg" style="color:#94A3B8;font-size:13px;">No logo uploaded yet.</span>
+          </div>
+        </div>
 
         <!-- Stat cards -->
         <div class="stat-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:16px;">
@@ -889,6 +904,7 @@
 
 <!-- Hidden file input for logo uploads -->
 <input type="file" id="logo-file-input" accept="image/*" style="display:none;" onchange="handleLogoFileSelected(this)"/>
+<input type="file" id="site-logo-file-input" accept="image/*" style="display:none;" onchange="handleSiteLogoFileSelected(this)"/>
 
 <!-- STAFF MODAL -->
 <div class="modal-overlay" id="staff-modal-overlay">

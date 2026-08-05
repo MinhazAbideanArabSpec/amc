@@ -172,6 +172,15 @@
     .nav-tab.active { color: #fff; background: rgba(255,255,255,0.08); border-left-color: var(--accent); }
     .nav-tab:not(.active):hover { color: #E5E7EB; background: rgba(255,255,255,0.05); }
 
+    .nav-tab.nav-tab-soon { color: #5B6472; cursor: default; }
+    .nav-tab.nav-tab-soon:hover { color: #5B6472; background: transparent; }
+    .nav-tab-soon-badge {
+      margin-inline-start: auto;
+      font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+      background: rgba(255,255,255,0.06); color: #8891A0;
+      padding: 2px 7px; border-radius: 20px; flex-shrink: 0;
+    }
+
     @media (max-width: 760px) {
       .view-shell { flex-direction: column; }
       .nav-tabs {

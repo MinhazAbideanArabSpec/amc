@@ -148,6 +148,7 @@
     }
 
     /* ── Customer view ── */
+    #cust-panel-contract { max-width: 900px; }
     .profile-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }
     .profile-row:last-child { border-bottom: none; }
     .profile-row .lbl { font-size: 13px; color: #8A8377; }

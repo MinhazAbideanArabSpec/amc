@@ -8,6 +8,9 @@ const PDF_GREEN  = [39, 174, 96];
 const PDF_AMBER  = [212, 160, 23];
 const PDF_RED    = [192, 57, 43];
 const PDF_BG     = [250, 250, 249];
+const PDF_PURPLE = [91, 33, 182];
+const PDF_TEAL   = [14, 165, 160];
+const PDF_SLATE  = [148, 163, 184];
 
 // PDF-safe date formatter — always English, no special chars
 function pdfFmtDate(d) {
@@ -62,6 +65,52 @@ function pdfResultBadge(doc, result, x, y) {
   doc.setFontSize(6.5);
   doc.setTextColor(255, 255, 255);
   doc.text(label, x + w / 2, y + 4.3, { align: 'center' });
+}
+
+// Solid color stat tile — big number + wrapped label, white text
+function pdfStatBox(doc, x, y, w, h, value, label, rgb) {
+  doc.setFillColor(...rgb);
+  doc.roundedRect(x, y, w, h, 2.5, 2.5, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.setTextColor(255, 255, 255);
+  doc.text(String(value), x + w / 2, y + h * 0.46, { align: 'center' });
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(6.8);
+  const lines = doc.splitTextToSize(label, w - 6);
+  doc.text(lines, x + w / 2, y + h * 0.46 + 6, { align: 'center' });
+}
+
+// Rounded pill progress bar
+function pdfProgressBar(doc, x, y, w, h, pct, rgb) {
+  doc.setFillColor(230, 232, 236);
+  doc.roundedRect(x, y, w, h, h / 2, h / 2, 'F');
+  const fillW = Math.max(h, w * Math.min(1, Math.max(0, pct)));
+  doc.setFillColor(...rgb);
+  doc.roundedRect(x, y, fillW, h, h / 2, h / 2, 'F');
+}
+
+// Small solid pill badge — returns its rendered width
+function pdfBadge(doc, label, x, y, rgb) {
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7);
+  const w = doc.getStringUnitWidth(label) * (7 / doc.internal.scaleFactor) + 8;
+  doc.setFillColor(...rgb);
+  doc.rect(x, y, w, 5.5, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.text(label, x + w / 2, y + 3.9, { align: 'center' });
+  return w;
+}
+
+// Table header row — accent bar with column labels
+function pdfTableHeader(doc, y, pw, cols) {
+  doc.setFillColor(...PDF_ACCENT);
+  doc.rect(14, y - 4, pw - 28, 7, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(7.5);
+  doc.setTextColor(255, 255, 255);
+  cols.forEach(([label, x, opts]) => doc.text(label, x, y, opts || {}));
+  return y + 7;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -301,10 +350,12 @@ async function downloadVisitReportPDF(reportId, visitNum, visitDate, engineerNam
 }
 
 // ─────────────────────────────────────────────────────────────
-//  DASHBOARD PDF
-//  Page 1: Contract Overview
-//  Page 2: Asset Statuses (with asset names)
-//  Page 3: Visit Section Scores
+//  DASHBOARD PDF — plain-language report for non-technical readers
+//  Page 1: Summary (status banner + key numbers + contract bar)
+//  Page 2: Contract & Renewals
+//  Page 3: Asset Health Overview
+//  Page 4: Action Items (top issues, ranked by devices affected)
+//  Page 5: Visit History
 // ─────────────────────────────────────────────────────────────
 async function downloadDashboardPDF(btn) {
   btn = btn || (event && event.target && event.target.closest('button')) || { innerHTML: '', disabled: false };
@@ -313,14 +364,40 @@ async function downloadDashboardPDF(btn) {
   btn.disabled  = true;
 
   try {
-    const { jsPDF } = window.jspdf;
-    const doc          = new jsPDF({ unit: 'mm', format: 'a4' });
-    const pw           = doc.internal.pageSize.getWidth();
+    const customerId   = getCustomerId();
     const customerName = myProfile?.name || 'Customer';
     const now          = new Date();
-    const dateStr      = now.toLocaleDateString('en-GB', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const today         = now;
 
-    // Shared page header helper
+    const contracts    = window._dashContracts || [];
+    const healthCounts = window._dashHealthCounts || {};
+    const assets       = customerAssetsCache || [];
+    const tagGroups    = window._dashTagGroups || {};
+
+    const [{ data: subs }, { data: visits }, { data: completedNums }] = await Promise.all([
+      sb.from('subscriptions').select('*').eq('customer_id', customerId).order('end_date', { ascending: true }),
+      sb.from('visit_reports').select('id, visit_number, visit_date, engineer_name').eq('customer_id', customerId).order('visit_date', { ascending: false }).limit(8),
+      sb.from('visit_reports').select('visit_number').eq('customer_id', customerId).eq('status', 'completed'),
+    ]);
+    const subscriptions  = subs || [];
+    const recentVisits   = visits || [];
+    const visitsCompleted = new Set((completedNums || []).map(r => r.visit_number)).size;
+
+    let visitAssetCounts = {};
+    if (recentVisits.length) {
+      const { data: vraRows } = await sb.from('visit_report_assets').select('visit_report_id').in('visit_report_id', recentVisits.map(v => v.id));
+      (vraRows || []).forEach(r => { visitAssetCounts[r.visit_report_id] = (visitAssetCounts[r.visit_report_id] || 0) + 1; });
+    }
+
+    const actionItems = Object.values(tagGroups)
+      .map(t => ({ label: t.label, count: t.assets.length }))
+      .sort((a, b) => b.count - a.count);
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const pw  = doc.internal.pageSize.getWidth();
+
+    // Shared page header for pages 2+
     function pageTop(title) {
       pdfBrandBar(doc, 'Dashboard Report');
       doc.setFillColor(244, 246, 248);
@@ -332,13 +409,12 @@ async function downloadDashboardPDF(btn) {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(7.5);
       doc.setTextColor(...PDF_MUTED);
-      doc.text(`${dateStr}  -  ${toHijri(now, false)}`, 14, 28);
+      doc.text(now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), 14, 28);
       doc.text(`Generated: ${now.toLocaleString('en-GB')}`, pw - 14, 28, { align: 'right' });
       doc.setDrawColor(...PDF_LINE);
       doc.setLineWidth(0.4);
       doc.line(0, 31, pw, 31);
 
-      // Section title
       doc.setFillColor(...PDF_ACCENT);
       doc.rect(14, 37, 3, 8, 'F');
       doc.setFont('helvetica', 'bold');
@@ -351,144 +427,228 @@ async function downloadDashboardPDF(btn) {
       return 54;
     }
 
-    // ── Page 1: Contract Overview ───────────────────────────
-    let y = pageTop('Contract Overview');
-    const today = new Date();
+    // ── Page 1: Summary ──────────────────────────────────────
+    pdfBrandBar(doc, 'Dashboard Report');
+    doc.setFillColor(...PDF_ACCENT);
+    doc.rect(0, 13, pw, 30, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(19);
+    doc.setTextColor(255, 255, 255);
+    doc.text(customerName, 14, 30);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text('Annual Maintenance Contract - Dashboard Report', 14, 37);
+    doc.setFontSize(8);
+    doc.text(now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), pw - 14, 37, { align: 'right' });
 
-    if (window._dashContracts?.length) {
-      window._dashContracts.forEach((c, i) => {
-        y = pdfCheckBreak(doc, y, 16);
-        const days = Math.max(0, Math.round((new Date(c.end_date) - today) / 86400000));
+    let y = 52;
 
-        if (i % 2 === 0) { doc.setFillColor(247, 248, 250); doc.rect(14, y - 3, pw - 28, 13, 'F'); }
+    const activeContract = contracts.find(c => c.status === 'active') || contracts[0];
+    const contractDays   = activeContract ? Math.round((new Date(activeContract.end_date) - today) / 86400000) : null;
+    const criticalCount  = healthCounts['Critical']?.count || 0;
+    const warningCount   = healthCounts['Warning']?.count || 0;
+    const contractExpired = contracts.some(c => c.status === 'expired') || (contractDays !== null && contractDays < 0);
+    const expiredRenewals = subscriptions.filter(s => Math.round((new Date(s.end_date) - today) / 86400000) < 0).length;
+    const soonRenewals    = subscriptions.filter(s => { const d = Math.round((new Date(s.end_date) - today) / 86400000); return d >= 0 && d < 60; }).length;
 
+    // Plain-language status banner
+    let bannerRgb, bannerText;
+    if (criticalCount > 0 || contractExpired || expiredRenewals > 0) {
+      bannerRgb = PDF_RED;
+      bannerText = 'Some items need your attention soon.';
+    } else if (warningCount > 0 || soonRenewals > 0 || (contractDays !== null && contractDays < 60)) {
+      bannerRgb = PDF_AMBER;
+      bannerText = 'A few things are worth keeping an eye on.';
+    } else {
+      bannerRgb = PDF_GREEN;
+      bannerText = 'Everything is in good shape.';
+    }
+    doc.setFillColor(...bannerRgb);
+    doc.roundedRect(14, y, pw - 28, 12, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10.5);
+    doc.setTextColor(255, 255, 255);
+    doc.text(bannerText, pw / 2, y + 7.7, { align: 'center' });
+    y += 20;
+
+    // Key numbers strip (mirrors the on-screen dashboard tiles)
+    const renewalAlerts = expiredRenewals + soonRenewals;
+    const stats = [
+      { value: contractDays === null ? '-' : contractDays < 0 ? 'Expired' : contractDays, label: 'Contract Days Remaining', rgb: contractDays === null ? PDF_SLATE : contractDays < 0 ? PDF_RED : contractDays < 60 ? PDF_AMBER : PDF_ACCENT },
+      { value: assets.length, label: 'Total Assets', rgb: PDF_ACCENT },
+      { value: visitsCompleted, label: 'Visits Completed', rgb: PDF_TEAL },
+      { value: criticalCount, label: 'Critical Issues', rgb: criticalCount > 0 ? PDF_RED : PDF_GREEN },
+      { value: renewalAlerts, label: 'Renewals Needing Attention', rgb: renewalAlerts > 0 ? PDF_AMBER : PDF_GREEN },
+    ];
+    const boxGap = 4;
+    const boxW   = (pw - 28 - boxGap * 4) / 5;
+    const boxH   = 28;
+    stats.forEach((s, i) => pdfStatBox(doc, 14 + i * (boxW + boxGap), y, boxW, boxH, s.value, s.label, s.rgb));
+    y += boxH + 14;
+
+    if (activeContract) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_DARK);
+      doc.text(`Current Contract: ${activeContract.contract_number}`, 14, y);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...PDF_MUTED);
+      doc.text(`${pdfFmtDate(activeContract.start_date)} - ${pdfFmtDate(activeContract.end_date)}`, pw - 14, y, { align: 'right' });
+      y += 5;
+      const span = new Date(activeContract.end_date) - new Date(activeContract.start_date);
+      const pct  = span > 0 ? (today - new Date(activeContract.start_date)) / span : 1;
+      pdfProgressBar(doc, 14, y, pw - 28, 4, pct, contractDays < 0 ? PDF_RED : contractDays < 60 ? PDF_AMBER : PDF_GREEN);
+      y += 12;
+    }
+
+    if (actionItems.length) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_DARK);
+      doc.text('Top thing to address:', 14, y);
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...PDF_MUTED);
+      doc.text(`${actionItems[0].label} (${actionItems[0].count} device${actionItems[0].count === 1 ? '' : 's'}) - see Action Items on page 4`, 60, y);
+    }
+
+    // ── Page 2: Contract & Renewals ──────────────────────────
+    doc.addPage();
+    y = pageTop('Contract & Renewals');
+
+    if (contracts.length) {
+      contracts.forEach(c => {
+        y = pdfCheckBreak(doc, y, 32);
+        doc.setFillColor(247, 248, 250);
+        doc.rect(14, y, pw - 28, 26, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_DARK);
+        doc.text(c.contract_number, 18, y + 8);
+        const statusRgb = c.status === 'active' ? PDF_GREEN : c.status === 'expired' ? PDF_RED : PDF_SLATE;
+        pdfBadge(doc, c.status.toUpperCase(), pw - 14 - 26, y + 4, statusRgb);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...PDF_MUTED);
+        doc.text(c.contract_type || '-', 18, y + 14);
+        const cDays = Math.round((new Date(c.end_date) - today) / 86400000);
+        doc.text(`${pdfFmtDate(c.start_date)} - ${pdfFmtDate(c.end_date)}`, 18, y + 20);
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(9.5);
-        doc.setTextColor(...PDF_DARK);
-        doc.text(c.contract_number, 16, y + 4);
-
-        const statusRgb = c.status === 'active' ? PDF_GREEN : c.status === 'expired' ? PDF_RED : PDF_AMBER;
-        doc.setFillColor(...statusRgb);
-        doc.rect(16 + doc.getStringUnitWidth(c.contract_number) * 9.5 / doc.internal.scaleFactor + 4, y - 1, 20, 6, 'F');
-        doc.setFont('helvetica', 'bold');
-        doc.setFontSize(6.5);
-        doc.setTextColor(255, 255, 255);
-        doc.text(c.status.toUpperCase(), 16 + doc.getStringUnitWidth(c.contract_number) * 9.5 / doc.internal.scaleFactor + 4 + 10, y + 3.5, { align: 'center' });
-
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(...PDF_MUTED);
-        doc.text(`${pdfFmtDate(c.start_date)}  ->  ${pdfFmtDate(c.end_date)}`, 16, y + 10);
-        doc.text(c.status === 'expired' ? 'Expired' : `${days} days remaining`, pw - 16, y + 10, { align: 'right' });
-
-        y += 16;
+        doc.setTextColor(...(cDays < 0 ? PDF_RED : cDays < 60 ? PDF_AMBER : PDF_GREEN));
+        doc.text(cDays < 0 ? 'Expired' : `${cDays} days remaining`, pw - 18, y + 20, { align: 'right' });
+        y += 32;
       });
     } else {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
       doc.text('No contracts assigned.', 14, y);
+      y += 10;
     }
 
-    // ── Page 3: Visit Section Scores with Tags ──────────────
-    doc.addPage();
-    y = pageTop('Visit Section Scores');
+    y += 4;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_ACCENT);
+    doc.text('Software & License Renewals', 14, y);
+    y += 8;
 
-    const gt = window._dashGrandTotals || {};
-    const grandTotal = (gt.pass || 0) + (gt.ok || 0) + (gt.fail || 0);
-
-    // Fetch all latest VRA tags for this customer to group by section
-    let sectionTagMap = {}; // { sectionName: [tagLabel, ...] }
-    try {
-      const { data: allAssets } = await sb.from('assets').select('id').eq('customer_id', myProfile.id);
-      if (allAssets?.length) {
-        const { data: vras } = await sb.from('visit_report_assets')
-          .select('id, asset_id').in('asset_id', allAssets.map(a => a.id))
-          .order('created_at', { ascending: false });
-        const latestVraMap = {};
-        (vras || []).forEach(v => { if (!latestVraMap[v.asset_id]) latestVraMap[v.asset_id] = v; });
-        const vraIds = Object.values(latestVraMap).map(v => v.id);
-        if (vraIds.length) {
-          const { data: vitags } = await sb.from('visit_issue_tags')
-            .select('visit_report_asset_id, issue_tag_definitions(label, section)')
-            .in('visit_report_asset_id', vraIds);
-          (vitags || []).forEach(vt => {
-            const sec = vt.issue_tag_definitions?.section;
-            const lbl = vt.issue_tag_definitions?.label;
-            if (!sec || !lbl) return;
-            if (!sectionTagMap[sec]) sectionTagMap[sec] = [];
-            if (!sectionTagMap[sec].includes(lbl)) sectionTagMap[sec].push(lbl);
-          });
-        }
-      }
-    } catch(e) { /* tags optional */ }
-
-    if (grandTotal > 0 && window._dashSectionTotals) {
-      // Overall row
-      doc.setFillColor(236, 240, 245);
-      doc.rect(14, y - 3, pw - 28, 12, 'F');
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_ACCENT);
-      doc.text('Overall Total', 16, y + 5);
-      doc.setTextColor(...PDF_GREEN);  doc.text(`${gt.pass || 0} Pass`,  pw - 80, y + 5);
-      doc.setTextColor(...PDF_AMBER);  doc.text(`${gt.ok || 0} OK`,      pw - 54, y + 5);
-      doc.setTextColor(...PDF_RED);    doc.text(`${gt.fail || 0} Fail`,  pw - 30, y + 5);
-      y += 14;
-
-      // Section rows
-      Object.entries(window._dashSectionTotals).forEach(([section, s], i) => {
-        const sTags   = sectionTagMap[section] || [];
-        const sResult = s.fail > 0 ? 'fail' : s.ok > 0 ? 'ok' : s.total > 0 ? 'pass' : null;
-        const tRgb    = sResult === 'fail' ? PDF_RED : PDF_AMBER;
-        const tBg     = sResult === 'fail' ? [253, 237, 236] : [254, 249, 231];
-
-        // Row height: base 11 + tags if any
-        let rh = 11;
-        if (sTags.length) rh += Math.ceil(sTags.length / 3) * 7 + 4;
-
-        y = pdfCheckBreak(doc, y, rh + 2);
-        if (i % 2 === 0) { doc.setFillColor(248, 249, 250); doc.rect(14, y - 2, pw - 28, rh, 'F'); }
-
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...PDF_DARK);
-        doc.text(section, 16, y + 5);
-
-        if (sResult) pdfResultBadge(doc, sResult, pw - 14 - 22, y + 1);
-
-        if (s.total > 0) {
-          doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
-          doc.setTextColor(...PDF_GREEN);  doc.text(`${s.pass}P`, pw - 80, y + 5);
-          doc.setTextColor(...PDF_AMBER);  doc.text(`${s.ok}OK`,  pw - 62, y + 5);
-          doc.setTextColor(...PDF_RED);    doc.text(`${s.fail}F`, pw - 48, y + 5);
-        }
-
-        // Issue tags under the section row
-        if (sTags.length) {
-          let tx = 18;
-          let ty = y + 12;
-          sTags.forEach(lbl => {
-            const tw = doc.getStringUnitWidth(lbl) * (7.5 / doc.internal.scaleFactor) + 8;
-            if (tx + tw > pw - 16) { tx = 18; ty += 7; }
-            doc.setFillColor(...tBg);
-            doc.setDrawColor(...tRgb);
-            doc.setLineWidth(0.3);
-            doc.rect(tx, ty - 4, tw, 6, 'FD');
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(7.5);
-            doc.setTextColor(...tRgb);
-            doc.text(lbl, tx + 4, ty + 0.5);
-            tx += tw + 4;
-          });
-        }
-
-        y += rh;
-        doc.setDrawColor(...PDF_LINE);
-        doc.setLineWidth(0.2);
-        doc.line(14, y, pw - 14, y);
+    if (subscriptions.length) {
+      y = pdfTableHeader(doc, y, pw, [['SOFTWARE', 18], ['VENDOR', 90], ['EXPIRY', 135], ['STATUS', pw - 18, { align: 'right' }]]);
+      subscriptions.forEach((s, i) => {
+        y = pdfCheckBreak(doc, y, 9);
+        if (i % 2 === 0) { doc.setFillColor(248, 249, 250); doc.rect(14, y - 4.5, pw - 28, 8, 'F'); }
+        const days  = Math.round((new Date(s.end_date) - today) / 86400000);
+        const rgb   = days < 0 ? PDF_RED : days < 60 ? PDF_AMBER : PDF_GREEN;
+        const label = days < 0 ? 'Expired' : days < 60 ? `${days}d left` : 'Active';
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...PDF_DARK);
+        doc.text(s.software_name, 18, y);
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(...PDF_MUTED);
+        doc.text(s.vendor || '-', 90, y);
+        doc.text(pdfFmtDate(s.end_date), 135, y);
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(...rgb);
+        doc.text(label, pw - 18, y, { align: 'right' });
+        y += 8;
       });
     } else {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
-      doc.text('No visit report data yet.', 14, y);
+      doc.text('No software renewals on file.', 14, y);
+    }
+
+    // ── Page 3: Asset Health Overview ────────────────────────
+    doc.addPage();
+    y = pageTop('Asset Health Overview');
+
+    const FIXED_ORDER = ['Critical', 'Warning', 'Pass', 'No Active Status'];
+    const HEALTH_RGB  = { 'Critical': PDF_RED, 'Warning': PDF_AMBER, 'Pass': PDF_GREEN, 'No Active Status': PDF_SLATE };
+    const totalAssets = assets.length || 1;
+    const hGap = 5;
+    const hW   = (pw - 28 - hGap * 3) / 4;
+    const hH   = 30;
+    FIXED_ORDER.forEach((label, i) => {
+      const count = healthCounts[label]?.count || 0;
+      const pct   = Math.round(count / totalAssets * 100);
+      pdfStatBox(doc, 14 + i * (hW + hGap), y, hW, hH, count, `${label} (${pct}%)`, HEALTH_RGB[label]);
+    });
+    y += hH + 14;
+
+    const byCategory = {};
+    assets.forEach(a => {
+      const cat = a.category || 'Other';
+      byCategory[cat] = (byCategory[cat] || 0) + 1;
+    });
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_ACCENT);
+    doc.text('Assets by Category', 14, y);
+    y += 8;
+    if (Object.keys(byCategory).length) {
+      y = pdfTableHeader(doc, y, pw, [['CATEGORY', 18], ['COUNT', pw - 18, { align: 'right' }]]);
+      Object.entries(byCategory).forEach(([cat, count], i) => {
+        y = pdfCheckBreak(doc, y, 9);
+        if (i % 2 === 0) { doc.setFillColor(248, 249, 250); doc.rect(14, y - 4.5, pw - 28, 8, 'F'); }
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_DARK);
+        doc.text(cat, 18, y);
+        doc.text(String(count), pw - 18, y, { align: 'right' });
+        y += 8;
+      });
+    } else {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
+      doc.text('No assets registered yet.', 14, y);
+    }
+
+    // ── Page 4: Action Items ─────────────────────────────────
+    doc.addPage();
+    y = pageTop('Action Items');
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
+    doc.text('What our engineers recommend addressing, ranked by how many devices are affected.', 14, y);
+    y += 10;
+
+    if (actionItems.length) {
+      actionItems.forEach((item, i) => {
+        y = pdfCheckBreak(doc, y, 14);
+        if (i % 2 === 0) { doc.setFillColor(248, 249, 250); doc.rect(14, y - 5, pw - 28, 12, 'F'); }
+        doc.setFillColor(...PDF_AMBER);
+        doc.circle(19, y - 0.5, 1.4, 'F');
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...PDF_DARK);
+        doc.text(item.label, 24, y);
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...PDF_MUTED);
+        doc.text(`${item.count} device${item.count === 1 ? '' : 's'} affected`, pw - 18, y, { align: 'right' });
+        y += 12;
+      });
+    } else {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_GREEN);
+      doc.text('No open issues found. Great job keeping things maintained.', 14, y);
+    }
+
+    // ── Page 5: Visit History ─────────────────────────────────
+    doc.addPage();
+    y = pageTop('Visit History');
+
+    if (recentVisits.length) {
+      y = pdfTableHeader(doc, y, pw, [['VISIT #', 18], ['DATE', 70], ['ENGINEER', 115], ['ASSETS CHECKED', pw - 18, { align: 'right' }]]);
+      recentVisits.forEach((v, i) => {
+        y = pdfCheckBreak(doc, y, 9);
+        if (i % 2 === 0) { doc.setFillColor(248, 249, 250); doc.rect(14, y - 4.5, pw - 28, 8, 'F'); }
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...PDF_DARK);
+        doc.text(v.visit_number, 18, y);
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(...PDF_MUTED);
+        doc.text(pdfFmtDate(v.visit_date), 70, y);
+        doc.text(v.engineer_name || '-', 115, y);
+        doc.setTextColor(...PDF_DARK);
+        doc.text(String(visitAssetCounts[v.id] || 0), pw - 18, y, { align: 'right' });
+        y += 8;
+      });
+    } else {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
+      doc.text('No visit reports on file yet.', 14, y);
     }
 
     pdfFooters(doc);
-    doc.save(`ArabSpecIT_${now.toISOString().split('T')[0]}.pdf`);
+    doc.save(`ArabSpecIT_Dashboard_${now.toISOString().split('T')[0]}.pdf`);
 
   } catch (err) {
     console.error('Dashboard PDF error:', err);

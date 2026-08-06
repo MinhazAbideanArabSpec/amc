@@ -65,6 +65,44 @@ async function saveSessionTimeoutSetting() {
   alert('Session timeout updated to ' + hours + ' hour(s).');
 }
 
+async function saveSmtpSettings() {
+  const host     = document.getElementById('smtp-host-input').value.trim();
+  const port     = document.getElementById('smtp-port-input').value.trim();
+  const username = document.getElementById('smtp-username-input').value.trim();
+  const password = document.getElementById('smtp-password-input').value;
+  const secure   = document.getElementById('smtp-secure-input').checked;
+  const statusEl = document.getElementById('smtp-save-status');
+  const btn      = document.getElementById('smtp-save-btn');
+
+  if (!host || !port || !username || !password) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Fill in host, port, username, and password.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  statusEl.style.display = 'none';
+
+  const { data, error } = await sb.functions.invoke('save-smtp-settings', {
+    body: { host, port, username, password, secure }
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Save SMTP Settings';
+
+  statusEl.style.display = 'block';
+  if (error || data?.error) {
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Failed to save: ' + (data?.error || error.message);
+  } else {
+    statusEl.style.color = 'var(--sage)';
+    statusEl.textContent = 'SMTP settings saved. Alerts will use these credentials starting with the next scheduled run.';
+    document.getElementById('smtp-password-input').value = '';
+  }
+}
+
 // Catches a tab left open across the timeout mark
 setInterval(() => {
   if (myProfile && isSessionExpired()) {

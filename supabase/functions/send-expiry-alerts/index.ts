@@ -5,6 +5,7 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
+import { renderAlertEmailHtml, renderAlertEmailText, renderAlertSubject } from '../_shared/emailTemplate.ts';
 
 const THRESHOLDS = [60, 30, 14, 7];
 
@@ -63,15 +64,26 @@ Deno.serve(async (_req) => {
     const recipients = await getRecipients(admin, c.customer_id, adminEmails);
     if (!recipients.length) continue;
 
-    const subject = `Contract ${c.contract_number} expires in ${days} days`;
-    const body = `Hi,\n\nThis is a reminder that contract ${c.contract_number} for ${customer?.name || 'your organization'} is set to expire in ${days} days (on ${c.end_date}).\n\nPlease reach out if you'd like to discuss renewal.\n\n— ArabSpec AMC Portal`;
+    const alertData = {
+      type: 'contract' as const,
+      itemName: c.contract_number,
+      customerName: customer?.name || 'your organization',
+      expiryDate: c.end_date,
+      daysLeft: days,
+    };
 
-    await client.send({ from: cfg.smtp_username, to: recipients, subject, content: body });
+    await client.send({
+      from: cfg.smtp_username,
+      to: recipients,
+      subject: renderAlertSubject(alertData),
+      content: renderAlertEmailText(alertData),
+      html: renderAlertEmailHtml(alertData),
+    });
     await admin.from('alert_log').insert({ entity_type: 'contract', entity_id: c.id, threshold_days: days });
     sentCount++;
   }
 
-  const { data: subs } = await admin.from('subscriptions').select('id, software_name, end_date, customer_id');
+  const { data: subs } = await admin.from('subscriptions').select('id, software_name, vendor, end_date, customer_id');
   for (const s of subs || []) {
     const days = daysUntil(s.end_date);
     if (!THRESHOLDS.includes(days)) continue;
@@ -84,10 +96,22 @@ Deno.serve(async (_req) => {
     const recipients = await getRecipients(admin, s.customer_id, adminEmails);
     if (!recipients.length) continue;
 
-    const subject = `${s.software_name} renewal expires in ${days} days`;
-    const body = `Hi,\n\nThe software renewal for "${s.software_name}" (${customer?.name || 'your organization'}) is set to expire in ${days} days (on ${s.end_date}).\n\nPlease reach out if you'd like to discuss renewal.\n\n— ArabSpec AMC Portal`;
+    const alertData = {
+      type: 'subscription' as const,
+      itemName: s.software_name,
+      vendor: s.vendor || undefined,
+      customerName: customer?.name || 'your organization',
+      expiryDate: s.end_date,
+      daysLeft: days,
+    };
 
-    await client.send({ from: cfg.smtp_username, to: recipients, subject, content: body });
+    await client.send({
+      from: cfg.smtp_username,
+      to: recipients,
+      subject: renderAlertSubject(alertData),
+      content: renderAlertEmailText(alertData),
+      html: renderAlertEmailHtml(alertData),
+    });
     await admin.from('alert_log').insert({ entity_type: 'subscription', entity_id: s.id, threshold_days: days });
     sentCount++;
   }

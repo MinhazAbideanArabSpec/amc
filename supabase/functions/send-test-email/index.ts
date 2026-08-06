@@ -1,9 +1,11 @@
-// send-test-email — admin-only. Sends a single test email using the exact
-// same template as a real expiry alert, so testing SMTP settings shows
-// exactly what recipients will actually receive.
+// send-test-email — admin-only. Sends two sample emails (one styled as a
+// contract expiry, one as a software renewal expiry) using the exact same
+// shared template as real alerts, so testing SMTP settings shows exactly
+// what recipients will actually receive for both alert types.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
+import { renderAlertEmailHtml, renderAlertEmailText, renderAlertSubject, AlertEmailData } from '../_shared/emailTemplate.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -60,18 +62,44 @@ Deno.serve(async (req) => {
       },
     });
 
-    // Same template shape as a real contract-expiry alert (see send-expiry-alerts),
-    // just with sample data and a clear TEST marker so it's never mistaken for real.
-    const sampleDays = 30;
-    const sampleDate = new Date();
-    sampleDate.setDate(sampleDate.getDate() + sampleDays);
-    const subject = `[TEST] Contract AMC-SAMPLE expires in ${sampleDays} days`;
-    const body = `Hi,\n\nThis is a reminder that contract AMC-SAMPLE for Sample Company is set to expire in ${sampleDays} days (on ${sampleDate.toISOString().split('T')[0]}).\n\nPlease reach out if you'd like to discuss renewal.\n\n— ArabSpec AMC Portal\n\n---\nThis is a TEST message sent from the SMTP settings page to confirm your email configuration works. No real contract is expiring.`;
+    const sampleDate = (days: number) => {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      return d.toISOString().split('T')[0];
+    };
 
-    await client.send({ from: cfg.smtp_username, to: [to], subject, content: body });
+    const samples: AlertEmailData[] = [
+      {
+        type: 'contract',
+        itemName: 'AMC-SAMPLE',
+        customerName: 'Sample Company LLC',
+        expiryDate: sampleDate(30),
+        daysLeft: 30,
+        isTest: true,
+      },
+      {
+        type: 'subscription',
+        itemName: 'Microsoft 365 Business Standard',
+        vendor: 'Microsoft',
+        customerName: 'Sample Company LLC',
+        expiryDate: sampleDate(7),
+        daysLeft: 7,
+        isTest: true,
+      },
+    ];
+
+    for (const sample of samples) {
+      await client.send({
+        from: cfg.smtp_username,
+        to: [to],
+        subject: renderAlertSubject(sample),
+        content: renderAlertEmailText(sample),
+        html: renderAlertEmailHtml(sample),
+      });
+    }
+
     await client.close();
-
-    return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
+    return new Response(JSON.stringify({ ok: true, sent: samples.length }), { headers: corsHeaders });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });
   }

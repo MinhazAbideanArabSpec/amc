@@ -131,7 +131,7 @@ async function sendTestSmtpEmail() {
     statusEl.textContent = 'Failed to send: ' + (data?.error || error.message);
   } else {
     statusEl.style.color = 'var(--sage)';
-    statusEl.textContent = 'Test email sent to ' + to + '. Check your inbox (and spam folder).';
+    statusEl.textContent = '2 test emails (contract + software renewal samples) sent to ' + to + '. Check your inbox (and spam folder).';
   }
 }
 

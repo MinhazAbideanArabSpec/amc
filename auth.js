@@ -16,7 +16,7 @@ async function sendOtp() {
   }
 
   btn.disabled = true;
-  btn.textContent = 'Sending…';
+  btn.innerHTML = '<span class="btn-spinner"></span>Sending…';
 
   const { error } = await sb.auth.signInWithOtp({
     email,
@@ -27,7 +27,7 @@ async function sendOtp() {
   });
 
   btn.disabled = false;
-  btn.textContent = 'Send sign-in code';
+  btn.textContent = 'Send Sign-In Code';
 
   if (error) {
     errEl.textContent = error.message.includes('not found') || error.message.includes('Invalid')
@@ -42,8 +42,7 @@ async function sendOtp() {
     `We sent an 8-digit code to ${email}`;
   document.getElementById('login-step-email').style.display = 'none';
   document.getElementById('login-step-otp').style.display = 'block';
-  document.getElementById('login-otp').value = '';
-  document.getElementById('login-otp').focus();
+  resetOtpBoxes();
 }
 
 // ── Step 2: Verify OTP ───────────────────────────────────────
@@ -60,7 +59,7 @@ async function verifyOtp() {
   }
 
   btn.disabled = true;
-  btn.textContent = 'Verifying…';
+  btn.innerHTML = '<span class="btn-spinner"></span>Verifying…';
 
   const { error } = await sb.auth.verifyOtp({
     email: _otpEmail,
@@ -69,11 +68,12 @@ async function verifyOtp() {
   });
 
   btn.disabled = false;
-  btn.textContent = 'Verify and sign in';
+  btn.textContent = 'Sign In';
 
   if (error) {
     errEl.textContent = 'Invalid or expired code. Try again or request a new one.';
     errEl.style.display = 'block';
+    resetOtpBoxes();
     return;
   }
 
@@ -84,10 +84,11 @@ async function verifyOtp() {
 async function resendOtp() {
   const btn = document.getElementById('btn-resend');
   btn.disabled = true;
-  btn.textContent = 'Sending…';
+  btn.innerHTML = '<span class="btn-spinner"></span>Sending…';
   await sb.auth.signInWithOtp({ email: _otpEmail, options: { shouldCreateUser: false, emailRedirectTo: null } });
   btn.disabled = false;
   btn.textContent = 'Resend Code';
+  resetOtpBoxes();
   const errEl = document.getElementById('login-otp-error');
   errEl.textContent = 'A new code has been sent to your email.';
   errEl.style.color = 'var(--accent)';
@@ -104,10 +105,44 @@ function backToEmail() {
   document.getElementById('login-otp-error').style.display = 'none';
 }
 
-// ── Enter key support ────────────────────────────────────────
+// ── Segmented OTP input: auto-advance, backspace, paste, auto-submit ──
+function resetOtpBoxes() {
+  const boxes = Array.from(document.querySelectorAll('.otp-box'));
+  boxes.forEach(b => { b.value = ''; });
+  document.getElementById('login-otp').value = '';
+  boxes[0]?.focus();
+}
+
+function updateHiddenOtpValue() {
+  const boxes = Array.from(document.querySelectorAll('.otp-box'));
+  document.getElementById('login-otp').value = boxes.map(b => b.value).join('');
+  return boxes;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('login-email')?.addEventListener('keydown', e => { if (e.key === 'Enter') sendOtp(); });
-  document.getElementById('login-otp')?.addEventListener('keydown', e => { if (e.key === 'Enter') verifyOtp(); });
+
+  const boxes = Array.from(document.querySelectorAll('.otp-box'));
+  boxes.forEach((box, i) => {
+    box.addEventListener('input', () => {
+      box.value = box.value.replace(/[^a-zA-Z0-9]/g, '').slice(0, 1);
+      if (box.value && i < boxes.length - 1) boxes[i + 1].focus();
+      const filled = updateHiddenOtpValue();
+      if (filled.every(b => b.value)) verifyOtp();
+    });
+    box.addEventListener('keydown', e => {
+      if (e.key === 'Backspace' && !box.value && i > 0) boxes[i - 1].focus();
+      if (e.key === 'Enter') verifyOtp();
+    });
+    box.addEventListener('paste', e => {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/[^a-zA-Z0-9]/g, '');
+      pasted.split('').forEach((ch, idx) => { if (boxes[idx]) boxes[idx].value = ch; });
+      boxes[Math.min(pasted.length, boxes.length - 1)].focus();
+      const filled = updateHiddenOtpValue();
+      if (filled.every(b => b.value)) verifyOtp();
+    });
+  });
 });
 
 async function logout() {

@@ -145,6 +145,7 @@ setInterval(() => {
 
 // ── Boot: restore session after ALL scripts have loaded ──
 window.addEventListener('load', async () => {
+  loadSiteLogo(); // populate .site-logo-img everywhere, including the login screen
   await loadSessionTimeoutSetting();
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return;

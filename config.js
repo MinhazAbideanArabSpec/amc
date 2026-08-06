@@ -103,6 +103,38 @@ async function saveSmtpSettings() {
   }
 }
 
+async function sendTestSmtpEmail() {
+  const emailInput = document.getElementById('smtp-test-email-input');
+  const to = emailInput.value.trim();
+  const statusEl = document.getElementById('smtp-test-status');
+  const btn = document.getElementById('smtp-test-btn');
+
+  if (!to || !to.includes('@')) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Enter a valid email address.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+  statusEl.style.display = 'none';
+
+  const { data, error } = await sb.functions.invoke('send-test-email', { body: { to } });
+
+  btn.disabled = false;
+  btn.textContent = 'Send Test Email';
+
+  statusEl.style.display = 'block';
+  if (error || data?.error) {
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Failed to send: ' + (data?.error || error.message);
+  } else {
+    statusEl.style.color = 'var(--sage)';
+    statusEl.textContent = 'Test email sent to ' + to + '. Check your inbox (and spam folder).';
+  }
+}
+
 // Catches a tab left open across the timeout mark
 setInterval(() => {
   if (myProfile && isSessionExpired()) {

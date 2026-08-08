@@ -151,11 +151,10 @@ function renderPage() {
   const pageItems = _items.slice(_page * PAGE_SIZE, _page * PAGE_SIZE + PAGE_SIZE);
 
   grid.innerHTML = pageItems.map(it => {
-    const urgent = it.days < 0;
-    const soon = !urgent && it.days <= 14;
-    const rowCls = urgent ? 'urgent' : soon ? 'soon' : '';
-    const daysCls = urgent ? 'urgent-text' : soon ? 'soon-text' : '';
-    const daysLabel = urgent ? `${Math.abs(it.days)}d overdue` : `${it.days}d left`;
+    const expired = it.days < 0;
+    const rowCls = expired ? 'expired' : 'expiring';
+    const daysCls = expired ? 'expired-text' : 'expiring-text';
+    const daysLabel = expired ? `${Math.abs(it.days)}d overdue` : `${it.days}d left`;
     const badgeCls = it.type === 'Contract' ? 'contract' : 'renewal';
     return `
       <div class="disp-row ${rowCls}">

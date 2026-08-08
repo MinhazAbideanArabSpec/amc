@@ -9,48 +9,62 @@
   <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
   <style>
+    :root {
+      /* Matches the "Warning" color used app-wide (Asset Health tiles, visit results) */
+      --disp-yellow-bg:     #FEF9E7;
+      --disp-yellow-border: #D4A017;
+      --disp-yellow-text:   #D4A017;
+      /* Matches the app's canonical expired/critical color (--rust) */
+      --disp-red-bg:        var(--rust-bg);
+      --disp-red-border:    var(--rust);
+      --disp-red-text:      var(--rust);
+    }
     body { overflow: hidden; }
     #display-login { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: var(--paper); }
-    #display-screen { display: none; min-height: 100vh; background: var(--ink); color: #fff; padding: 40px 56px; }
+    #display-screen { display: none; min-height: 100vh; background: var(--paper); color: var(--ink); padding: 40px 56px; }
 
-    .disp-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 32px; }
-    .disp-title { font-size: 32px; color: #fff; }
-    .disp-subtitle { font-size: 13px; color: #9CA3AF; margin-top: 6px; letter-spacing: 0.03em; }
+    .disp-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 30px; padding-bottom: 22px; border-bottom: 1px solid var(--line);
+    }
+    .disp-title { font-size: 32px; color: var(--ink); }
+    .disp-subtitle { font-size: 13px; color: var(--ink-soft); margin-top: 6px; letter-spacing: 0.02em; }
     .disp-clock { text-align: right; }
-    .disp-clock .time { font-size: 30px; font-weight: 700; color: #fff; font-family: 'Source Serif 4', serif; line-height: 1; }
-    .disp-clock .date { font-size: 14px; color: #9CA3AF; margin-top: 6px; }
+    .disp-clock .time { font-size: 30px; font-weight: 700; color: var(--ink); font-family: 'Source Serif 4', serif; line-height: 1; }
+    .disp-clock .date { font-size: 14px; color: var(--ink-soft); margin-top: 6px; }
 
     .disp-grid { display: flex; flex-direction: column; gap: 14px; }
     .disp-row {
-      display: grid; grid-template-columns: 120px 1fr 260px 200px; align-items: center; gap: 24px;
-      background: rgba(255,255,255,0.045); border-radius: 10px; padding: 20px 26px;
-      border-left: 5px solid rgba(255,255,255,0.15);
+      display: grid; grid-template-columns: 130px 1fr 220px 200px; align-items: center; gap: 24px;
+      background: var(--card); border-radius: 10px; padding: 20px 26px;
+      border: 1px solid var(--line); border-left: 6px solid var(--line);
+      box-shadow: 0 1px 3px rgba(28,33,39,0.05);
     }
-    .disp-row.soon   { border-left-color: var(--amber); background: rgba(146,102,15,0.12); }
-    .disp-row.urgent { border-left-color: var(--rust);  background: rgba(192,57,43,0.14); }
+    .disp-row.expiring { border-left-color: var(--disp-yellow-border); background: var(--disp-yellow-bg); }
+    .disp-row.expired  { border-left-color: var(--disp-red-border);    background: var(--disp-red-bg); }
 
     .disp-type-badge {
       font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
-      padding: 7px 10px; border-radius: 6px; text-align: center;
+      padding: 8px 10px; border-radius: 6px; text-align: center;
     }
-    .disp-type-badge.contract { background: rgba(59,87,115,0.35); color: #9DC0E8; }
-    .disp-type-badge.renewal  { background: rgba(91,33,182,0.30); color: #C7B4F5; }
+    .disp-type-badge.contract { background: var(--slate-bg); color: var(--accent-dark); }
+    .disp-type-badge.renewal  { background: #EEEDFE; color: #4C3FA0; }
 
-    .disp-customer { font-size: 21px; font-weight: 700; color: #fff; }
-    .disp-item { font-size: 15px; color: #C9D4DE; margin-top: 3px; }
-    .disp-date { font-size: 15px; color: #9CA3AF; text-align: right; }
-    .disp-days { font-size: 30px; font-weight: 800; text-align: right; color: #9CA3AF; }
-    .disp-days.soon-text   { color: #FBBF24; }
-    .disp-days.urgent-text { color: #F87171; }
+    .disp-customer { font-size: 21px; font-weight: 700; color: var(--ink); }
+    .disp-item { font-size: 15px; color: var(--ink-soft); margin-top: 3px; }
+    .disp-date { font-size: 15px; color: var(--ink-soft); text-align: right; }
+    .disp-days { font-size: 30px; font-weight: 800; text-align: right; color: var(--ink-soft); }
+    .disp-days.expiring-text { color: var(--disp-yellow-text); }
+    .disp-days.expired-text  { color: var(--disp-red-text); }
 
     .disp-pagedots { display: flex; gap: 8px; justify-content: center; margin-top: 30px; }
-    .disp-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.2); transition: all 0.2s; }
+    .disp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: all 0.2s; }
     .disp-dot.active { background: var(--accent); width: 24px; border-radius: 5px; }
 
-    .disp-empty { text-align: center; padding: 100px 0; font-size: 22px; color: #9CA3AF; }
+    .disp-empty { text-align: center; padding: 100px 0; font-size: 22px; color: var(--ink-soft); }
 
     @media (max-width: 900px) {
-      .disp-row { grid-template-columns: 90px 1fr; grid-template-rows: auto auto; }
+      .disp-row { grid-template-columns: 100px 1fr; grid-template-rows: auto auto; }
       .disp-date, .disp-days { text-align: left; grid-column: 2; }
     }
   </style>

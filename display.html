@@ -35,7 +35,7 @@
 
     .disp-grid { display: flex; flex-direction: column; gap: 14px; }
     .disp-row {
-      display: grid; grid-template-columns: 130px 1fr 220px 200px; align-items: center; gap: 24px;
+      display: grid; grid-template-columns: 130px 1fr 170px 240px; align-items: center; gap: 24px;
       background: var(--card); border-radius: 10px; padding: 20px 26px;
       border: 1px solid var(--line); border-left: 6px solid var(--line);
       box-shadow: 0 1px 3px rgba(28,33,39,0.05);
@@ -53,7 +53,10 @@
     .disp-customer { font-size: 21px; font-weight: 700; color: var(--ink); }
     .disp-item { font-size: 15px; color: var(--ink-soft); margin-top: 3px; }
     .disp-date { font-size: 15px; color: var(--ink-soft); text-align: right; }
-    .disp-days { font-size: 30px; font-weight: 800; text-align: right; color: var(--ink-soft); }
+    .disp-days {
+      font-size: 26px; font-weight: 800; text-align: right; color: var(--ink-soft);
+      white-space: nowrap; text-transform: uppercase; letter-spacing: 0.01em;
+    }
     .disp-days.expiring-text { color: var(--disp-yellow-text); }
     .disp-days.expired-text  { color: var(--disp-red-text); }
 

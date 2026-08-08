@@ -1,7 +1,7 @@
 // admin.js — contracts, assets, reports, status
 
 async function populateCustomerDropdown(selectedId) {
-  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
   const sel = document.getElementById('cform-customer-id');
   sel.innerHTML = (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   if (selectedId) sel.value = selectedId;
@@ -266,7 +266,7 @@ async function loadHealthStatuses() {
 }
 
 async function populateAssetCustomerFilter() {
-  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
   const sel = document.getElementById('asset-customer-filter');
   const current = sel.value;
   sel.innerHTML = '<option value="">All Customers</option>' +
@@ -322,7 +322,7 @@ async function loadAssetsList() {
 }
 
 async function populateAssetCustomerDropdown(selectedId) {
-  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
   const sel = document.getElementById('aform-customer-id');
   sel.innerHTML = (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
   if (selectedId) sel.value = selectedId;

@@ -39,7 +39,7 @@ async function loadSubscriptions() {
   el.innerHTML = '<div class="empty-state">Loading…</div>';
 
   // Populate customer filter
-  const { data: customers } = await sb.from('profiles').select('id,name').eq('role','customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id,name').eq('role','customer').is('customer_id', null).order('name');
   const filterSel = document.getElementById('sub-customer-filter');
   const currentFilter = filterSel.value;
   filterSel.innerHTML = '<option value="">All Customers</option>' +
@@ -139,7 +139,7 @@ async function openCreateSubModal() {
   document.getElementById('sform-end').value = '';
   document.getElementById('sform-notes').value = '';
 
-  const { data: customers } = await sb.from('profiles').select('id,name').eq('role','customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id,name').eq('role','customer').is('customer_id', null).order('name');
   document.getElementById('sform-customer-id').innerHTML =
     '<option value="">— Select Customer —</option>' +
     (customers||[]).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -159,7 +159,7 @@ async function openEditSubModal(subId) {
   document.getElementById('sform-end').value      = s.end_date;
   document.getElementById('sform-notes').value    = s.notes || '';
 
-  const { data: customers } = await sb.from('profiles').select('id,name').eq('role','customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id,name').eq('role','customer').is('customer_id', null).order('name');
   document.getElementById('sform-customer-id').innerHTML =
     '<option value="">— Select Customer —</option>' +
     (customers||[]).map(c => `<option value="${c.id}">${c.name}</option>`).join('');

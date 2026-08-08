@@ -26,7 +26,7 @@ var allVisitStatuses = [];
 async function loadReportsList() {
   const tbody = document.getElementById('reports-tbody');
 
-  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
   const filterSel = document.getElementById('report-customer-filter');
   const currentFilter = filterSel.value;
   filterSel.innerHTML = '<option value="">All Customers</option>' +
@@ -85,7 +85,7 @@ async function openCreateReportModal() {
   document.getElementById('rform-overall-notes').value = '';
   document.getElementById('rform-assets-container').innerHTML = '<div class="empty-state">Select a customer to load their assets.</div>';
 
-  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
   const sel = document.getElementById('rform-customer-id');
   sel.innerHTML = '<option value="">— Select Customer —</option>' +
     (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');
@@ -115,7 +115,7 @@ async function openEditReportModal(reportId) {
   document.getElementById('rform-overall-notes').value = report.overall_notes || '';
   document.getElementById('rform-assets-container').innerHTML = '<div class="empty-state">Loading assets…</div>';
 
-  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
   const sel = document.getElementById('rform-customer-id');
   sel.innerHTML = '<option value="">— Select Customer —</option>' +
     (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');

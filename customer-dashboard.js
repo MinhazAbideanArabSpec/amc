@@ -362,7 +362,7 @@ function selectStatusIcon(key) {
 async function loadStatusTab() {
   await loadStatusDefinitions();
   // Populate dropdowns for assignment section
-  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').order('name');
+  const { data: customers } = await sb.from('profiles').select('id, name').eq('role', 'customer').is('customer_id', null).order('name');
   const custSel = document.getElementById('assign-customer-id');
   custSel.innerHTML = '<option value="">— Select Customer —</option>' +
     (customers || []).map(c => `<option value="${c.id}">${c.name}</option>`).join('');

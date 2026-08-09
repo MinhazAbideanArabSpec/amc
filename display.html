@@ -42,6 +42,7 @@
     }
     .disp-row.expiring { border-left-color: var(--disp-yellow-border); background: var(--disp-yellow-bg); }
     .disp-row.expired  { border-left-color: var(--disp-red-border);    background: var(--disp-red-bg); }
+    .disp-row.visit    { border-left-color: var(--accent); background: #EEF3F8; }
 
     .disp-type-badge {
       font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
@@ -49,6 +50,7 @@
     }
     .disp-type-badge.contract { background: var(--slate-bg); color: var(--accent-dark); }
     .disp-type-badge.renewal  { background: #EEEDFE; color: #4C3FA0; }
+    .disp-type-badge.visit    { background: var(--slate-bg); color: var(--accent-dark); }
 
     .disp-customer { font-size: 21px; font-weight: 700; color: var(--ink); }
     .disp-item { font-size: 15px; color: var(--ink-soft); margin-top: 3px; }
@@ -59,6 +61,7 @@
     }
     .disp-days.expiring-text { color: var(--disp-yellow-text); }
     .disp-days.expired-text  { color: var(--disp-red-text); }
+    .disp-days.visit-text    { color: var(--accent); }
 
     .disp-pagedots { display: flex; gap: 8px; justify-content: center; margin-top: 30px; }
     .disp-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: all 0.2s; }
@@ -102,8 +105,8 @@
   <div id="display-screen">
     <div class="disp-header">
       <div>
-        <div class="disp-title">Expiring &amp; Expired Renewals</div>
-        <div class="disp-subtitle">ArabSpec AMC Portal — Office Display · updates automatically</div>
+        <div class="disp-title" id="disp-title">Expiring &amp; Expired Renewals</div>
+        <div class="disp-subtitle" id="disp-subtitle">ArabSpec AMC Portal — Office Display · updates automatically</div>
       </div>
       <div class="disp-clock">
         <div class="time" id="disp-time">--:--</div>

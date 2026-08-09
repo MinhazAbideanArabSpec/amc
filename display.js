@@ -7,14 +7,22 @@ const SUPABASE_URL = 'https://taihtmdhismfnhmboryy.supabase.co';
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRhaWh0bWRoaXNtZm5obWJvcnl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE0ODgyODQsImV4cCI6MjA5NzA2NDI4NH0.DuK5pfabqbW-pWvfc5EJ8qc2-fvk0cVHIRuT1WUWS_c';
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
-const THRESHOLD_DAYS = 90;
+const RENEWAL_THRESHOLD_DAYS = 90;
+const VISIT_THRESHOLD_DAYS = 30;
 const PAGE_SIZE = 6;
 const PAGE_INTERVAL_MS = 12000;
 const DATA_REFRESH_MS = 5 * 60 * 1000;
 
 var _otpEmail = '';
-var _items = [];
-var _page = 0;
+var _renewalItems = [];
+var _visitItems = [];
+var _pages = [];      // [{ section:'renewal'|'visit', items:[...] }, ...]
+var _pageIndex = 0;
+
+const SECTION_META = {
+  renewal: { title: 'Expiring & Expired Renewals', subtitle: `ArabSpec AMC Portal — Office Display · updates automatically` },
+  visit:   { title: 'Upcoming AMC Site Visits',     subtitle: `Scheduled maintenance visits — next ${VISIT_THRESHOLD_DAYS} days` },
+};
 
 // ── Login (minimal, same OTP flow as the main app) ──────────────
 async function dSendOtp() {
@@ -115,61 +123,103 @@ function fmtDispDate(iso) {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+function renderRenewalRow(it) {
+  const expired = it.days < 0;
+  const rowCls = expired ? 'expired' : 'expiring';
+  const daysCls = expired ? 'expired-text' : 'expiring-text';
+  const daysLabel = expired ? `${Math.abs(it.days)}d overdue` : `${it.days}d left`;
+  const badgeCls = it.type === 'Contract' ? 'contract' : 'renewal';
+  return `
+    <div class="disp-row ${rowCls}">
+      <div class="disp-type-badge ${badgeCls}">${it.type}</div>
+      <div>
+        <div class="disp-customer">${it.customer}</div>
+        <div class="disp-item">${it.name}${it.vendor ? ' · ' + it.vendor : ''}</div>
+      </div>
+      <div class="disp-date">Expires ${fmtDispDate(it.end_date)}</div>
+      <div class="disp-days ${daysCls}">${daysLabel}</div>
+    </div>`;
+}
+
+function renderVisitRow(it) {
+  const daysLabel = it.days === 0 ? 'today' : it.days === 1 ? '1d away' : `${it.days}d away`;
+  return `
+    <div class="disp-row visit">
+      <div class="disp-type-badge visit">Visit</div>
+      <div>
+        <div class="disp-customer">${it.customer}</div>
+      </div>
+      <div class="disp-date">Scheduled ${fmtDispDate(it.next_visit_date)}</div>
+      <div class="disp-days visit-text">${daysLabel}</div>
+    </div>`;
+}
+
 async function loadData() {
-  const [{ data: contracts }, { data: subs }] = await Promise.all([
+  const [{ data: contracts }, { data: subs }, { data: visits }] = await Promise.all([
     sb.from('contracts').select('contract_number, end_date, profiles!contracts_customer_id_fkey(name)').eq('status', 'active'),
     sb.from('subscriptions').select('software_name, vendor, end_date, profiles!subscriptions_customer_id_fkey(name)'),
+    sb.from('profiles').select('name, next_visit_date').eq('role', 'customer').is('customer_id', null).not('next_visit_date', 'is', null),
   ]);
 
-  const items = [];
+  const renewalItems = [];
   (contracts || []).forEach(c => {
     const days = daysUntil(c.end_date);
-    if (days <= THRESHOLD_DAYS) items.push({ type: 'Contract', name: c.contract_number, customer: c.profiles?.name || '—', end_date: c.end_date, days });
+    if (days <= RENEWAL_THRESHOLD_DAYS) renewalItems.push({ type: 'Contract', name: c.contract_number, customer: c.profiles?.name || '—', end_date: c.end_date, days });
   });
   (subs || []).forEach(s => {
     const days = daysUntil(s.end_date);
-    if (days <= THRESHOLD_DAYS) items.push({ type: 'Renewal', name: s.software_name, vendor: s.vendor, customer: s.profiles?.name || '—', end_date: s.end_date, days });
+    if (days <= RENEWAL_THRESHOLD_DAYS) renewalItems.push({ type: 'Renewal', name: s.software_name, vendor: s.vendor, customer: s.profiles?.name || '—', end_date: s.end_date, days });
   });
+  renewalItems.sort((a, b) => a.days - b.days);
+  _renewalItems = renewalItems;
 
-  items.sort((a, b) => a.days - b.days);
-  _items = items;
-  if (_page * PAGE_SIZE >= _items.length) _page = 0;
-  renderPage();
+  const visitItems = [];
+  (visits || []).forEach(p => {
+    const days = daysUntil(p.next_visit_date);
+    if (days >= 0 && days <= VISIT_THRESHOLD_DAYS) visitItems.push({ customer: p.name, next_visit_date: p.next_visit_date, days });
+  });
+  visitItems.sort((a, b) => a.days - b.days);
+  _visitItems = visitItems;
+
+  buildPages();
+  renderCurrentPage();
 }
 
-function renderPage() {
+function chunk(items, size) {
+  const out = [];
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  return out.length ? out : [[]]; // always at least one (possibly empty) page
+}
+
+function buildPages() {
+  const pages = [];
+  chunk(_renewalItems, PAGE_SIZE).forEach(items => pages.push({ section: 'renewal', items }));
+  chunk(_visitItems, PAGE_SIZE).forEach(items => pages.push({ section: 'visit', items }));
+  _pages = pages;
+  if (_pageIndex >= _pages.length) _pageIndex = 0;
+}
+
+function renderCurrentPage() {
   const grid = document.getElementById('disp-grid');
   const dots = document.getElementById('disp-pagedots');
+  const page = _pages[_pageIndex];
+  if (!page) return;
 
-  if (!_items.length) {
-    grid.innerHTML = '<div class="disp-empty">✓ Nothing expiring in the next ' + THRESHOLD_DAYS + ' days — all clear.</div>';
-    dots.innerHTML = '';
-    return;
+  const meta = SECTION_META[page.section];
+  document.getElementById('disp-title').textContent = meta.title;
+  document.getElementById('disp-subtitle').textContent = meta.subtitle;
+
+  if (!page.items.length) {
+    const emptyMsg = page.section === 'renewal'
+      ? `✓ Nothing expiring in the next ${RENEWAL_THRESHOLD_DAYS} days — all clear.`
+      : `✓ No visits scheduled in the next ${VISIT_THRESHOLD_DAYS} days.`;
+    grid.innerHTML = `<div class="disp-empty">${emptyMsg}</div>`;
+  } else {
+    grid.innerHTML = page.items.map(it => page.section === 'renewal' ? renderRenewalRow(it) : renderVisitRow(it)).join('');
   }
 
-  const totalPages = Math.ceil(_items.length / PAGE_SIZE);
-  const pageItems = _items.slice(_page * PAGE_SIZE, _page * PAGE_SIZE + PAGE_SIZE);
-
-  grid.innerHTML = pageItems.map(it => {
-    const expired = it.days < 0;
-    const rowCls = expired ? 'expired' : 'expiring';
-    const daysCls = expired ? 'expired-text' : 'expiring-text';
-    const daysLabel = expired ? `${Math.abs(it.days)}d overdue` : `${it.days}d left`;
-    const badgeCls = it.type === 'Contract' ? 'contract' : 'renewal';
-    return `
-      <div class="disp-row ${rowCls}">
-        <div class="disp-type-badge ${badgeCls}">${it.type}</div>
-        <div>
-          <div class="disp-customer">${it.customer}</div>
-          <div class="disp-item">${it.name}${it.vendor ? ' · ' + it.vendor : ''}</div>
-        </div>
-        <div class="disp-date">Expires ${fmtDispDate(it.end_date)}</div>
-        <div class="disp-days ${daysCls}">${daysLabel}</div>
-      </div>`;
-  }).join('');
-
-  dots.innerHTML = totalPages > 1
-    ? Array.from({ length: totalPages }, (_, i) => `<div class="disp-dot ${i === _page ? 'active' : ''}"></div>`).join('')
+  dots.innerHTML = _pages.length > 1
+    ? _pages.map((_, i) => `<div class="disp-dot ${i === _pageIndex ? 'active' : ''}"></div>`).join('')
     : '';
 }
 
@@ -185,10 +235,9 @@ function startDisplay() {
   setInterval(updateClock, 1000);
   setInterval(loadData, DATA_REFRESH_MS);
   setInterval(() => {
-    const totalPages = Math.ceil(_items.length / PAGE_SIZE);
-    if (totalPages > 1) {
-      _page = (_page + 1) % totalPages;
-      renderPage();
+    if (_pages.length > 1) {
+      _pageIndex = (_pageIndex + 1) % _pages.length;
+      renderCurrentPage();
     }
   }, PAGE_INTERVAL_MS);
 }

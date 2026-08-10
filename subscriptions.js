@@ -117,6 +117,7 @@ function renderSubsTable() {
               <td>
                 <div class="row-actions">
                   <button class="secondary" onclick="openEditSubModal('${s.id}')">Edit</button>
+                  <button class="secondary" onclick="markRenewalLost('${s.id}')" title="We lost this renewal quote — push it to the next cycle so it stops alerting until then">Lost — Push to Next Cycle</button>
                   <button class="danger" onclick="deleteSub('${s.id}','${s.software_name.replace(/'/g,"\\'")}')">Delete</button>
                 </div>
               </td>
@@ -137,6 +138,7 @@ async function openCreateSubModal() {
   document.getElementById('sform-vendor').value = '';
   document.getElementById('sform-start').value = '';
   document.getElementById('sform-end').value = '';
+  document.getElementById('sform-renewal-interval').value = '';
   document.getElementById('sform-notes').value = '';
 
   const { data: customers } = await sb.from('profiles').select('id,name').eq('role','customer').is('customer_id', null).order('name');
@@ -157,6 +159,7 @@ async function openEditSubModal(subId) {
   document.getElementById('sform-vendor').value   = s.vendor || '';
   document.getElementById('sform-start').value    = s.start_date;
   document.getElementById('sform-end').value      = s.end_date;
+  document.getElementById('sform-renewal-interval').value = s.renewal_interval_months || '';
   document.getElementById('sform-notes').value    = s.notes || '';
 
   const { data: customers } = await sb.from('profiles').select('id,name').eq('role','customer').is('customer_id', null).order('name');
@@ -183,6 +186,8 @@ async function saveSubscription() {
   const vendor        = document.getElementById('sform-vendor').value.trim();
   const start_date    = document.getElementById('sform-start').value;
   const end_date      = document.getElementById('sform-end').value;
+  const renewalIntervalRaw = document.getElementById('sform-renewal-interval').value;
+  const renewal_interval_months = renewalIntervalRaw ? parseInt(renewalIntervalRaw, 10) : null;
   const notes         = document.getElementById('sform-notes').value.trim();
 
   if (!customer_id || !software_name || !start_date || !end_date) {
@@ -197,8 +202,14 @@ async function saveSubscription() {
     saveBtn.disabled = false;
     return;
   }
+  if (renewalIntervalRaw && (!renewal_interval_months || renewal_interval_months <= 0)) {
+    errEl.textContent = 'Renewal interval must be a positive number of months.';
+    errEl.style.display = 'block';
+    saveBtn.disabled = false;
+    return;
+  }
 
-  const payload = { customer_id, software_name, vendor: vendor||null, start_date, end_date, notes: notes||null };
+  const payload = { customer_id, software_name, vendor: vendor||null, start_date, end_date, renewal_interval_months, notes: notes||null };
   const { error } = editingSubId
     ? await sb.from('subscriptions').update(payload).eq('id', editingSubId)
     : await sb.from('subscriptions').insert(payload);
@@ -219,6 +230,51 @@ async function deleteSub(subId, name) {
   if (!confirm(`Delete subscription "${name}"?`)) return;
   const { error } = await sb.from('subscriptions').delete().eq('id', subId);
   if (error) { alert('Failed: ' + error.message); return; }
+  loadSubscriptions();
+}
+
+// Adds N months to a date string, clamping the day so e.g. 31 Jan + 1mo → 28/29 Feb
+// instead of silently rolling into March. Does all math in UTC — mixing local-time
+// Date methods with toISOString() would shift the result by a day in timezones
+// away from UTC+0.
+function addMonths(dateStr, months) {
+  const [y, m, day] = dateStr.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m - 1, 1));
+  d.setUTCMonth(d.getUTCMonth() + months);
+  const lastDayOfTargetMonth = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, lastDayOfTargetMonth));
+  return d.toISOString().split('T')[0];
+}
+
+// Renewal quotes are sometimes lost — instead of a separate "lost" status to keep in
+// sync everywhere, this pushes the dates forward by the subscription's renewal
+// interval. Every alert surface (office display, dashboards, expiry emails) already
+// just checks end_date against a threshold, so this removes it from all of them at
+// once and it naturally reappears once the next cycle is actually due.
+async function markRenewalLost(subId) {
+  const { data: s } = await sb.from('subscriptions').select('*').eq('id', subId).single();
+  if (!s) { alert('Could not load subscription.'); return; }
+
+  let months = s.renewal_interval_months;
+  if (!months) {
+    const entered = prompt('No renewal interval is set for this subscription yet.\nHow many months until the next renewal attempt? (e.g. 12 for yearly, 24 for 2 years)');
+    if (entered === null) return;
+    months = parseInt(entered, 10);
+    if (!months || months <= 0) { alert('Enter a positive number of months.'); return; }
+  }
+
+  if (!confirm(`Mark "${s.software_name}" as a lost renewal and push it forward ${months} month(s), to ${addMonths(s.end_date, months)}?`)) return;
+
+  const newStart = s.end_date;
+  const newEnd = addMonths(s.end_date, months);
+  const lostNote = `Lost renewal quote on ${new Date().toISOString().split('T')[0]}; pushed to next cycle.`;
+  const notes = s.notes ? `${s.notes}\n${lostNote}` : lostNote;
+
+  const { error } = await sb.from('subscriptions')
+    .update({ start_date: newStart, end_date: newEnd, renewal_interval_months: months, notes })
+    .eq('id', subId);
+  if (error) { alert('Failed: ' + error.message); return; }
+
   loadSubscriptions();
 }
 

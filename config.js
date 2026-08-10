@@ -151,7 +151,7 @@ window.addEventListener('load', async () => {
   if (!session) return;
   if (isSessionExpired()) {
     localStorage.removeItem('login_at');
-    await sb.auth.signOut();
+    await sb.auth.signOut({ scope: 'local' });
     return;
   }
   await afterLogin();

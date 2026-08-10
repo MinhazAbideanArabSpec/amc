@@ -92,7 +92,7 @@ async function checkAdminAndStart() {
 
   const { data: profile } = await sb.from('profiles').select('role').eq('id', user.id).single();
   if (profile?.role !== 'admin') {
-    await sb.auth.signOut();
+    await sb.auth.signOut({ scope: 'local' });
     return showLogin('This screen is for admin accounts only.');
   }
 

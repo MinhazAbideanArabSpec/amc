@@ -147,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 async function logout() {
   localStorage.removeItem('login_at');
-  await sb.auth.signOut();
+  await sb.auth.signOut({ scope: 'local' });
   document.getElementById('app-screen').style.display = 'none';
   document.getElementById('admin-view').style.display = 'none';
   document.getElementById('customer-view').style.display = 'none';
@@ -160,12 +160,12 @@ async function afterLogin() {
 
   if (error || !profile) {
     alert('Your account has no profile set up. Contact admin.');
-    await sb.auth.signOut();
+    await sb.auth.signOut({ scope: 'local' });
     return;
   }
   if (!profile.is_active) {
     alert('Your account has been deactivated. Contact admin.');
-    await sb.auth.signOut();
+    await sb.auth.signOut({ scope: 'local' });
     return;
   }
 

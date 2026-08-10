@@ -21,7 +21,7 @@ var _pageIndex = 0;
 
 const SECTION_META = {
   renewal: { title: 'Expiring & Expired Renewals', subtitle: `ArabSpec AMC Portal — Office Display · updates automatically` },
-  visit:   { title: 'Upcoming AMC Site Visits',     subtitle: `Scheduled maintenance visits — next ${VISIT_THRESHOLD_DAYS} days` },
+  visit:   { title: 'Upcoming AMC Site Visits',     subtitle: `Scheduled maintenance visits — next ${VISIT_THRESHOLD_DAYS} days, plus any active AMC company with no visit set this month` },
 };
 
 // ── Login (minimal, same OTP flow as the main app) ──────────────
@@ -123,6 +123,13 @@ function fmtDispDate(iso) {
   return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
 }
 
+function isInCurrentMonth(dateStr) {
+  if (!dateStr) return false;
+  const d = new Date(dateStr);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+}
+
 function renderRenewalRow(it) {
   const expired = it.days < 0;
   const rowCls = expired ? 'expired' : 'expiring';
@@ -142,6 +149,29 @@ function renderRenewalRow(it) {
 }
 
 function renderVisitRow(it) {
+  if (it.notScheduled) {
+    return `
+      <div class="disp-row expired">
+        <div class="disp-type-badge visit">Visit</div>
+        <div>
+          <div class="disp-customer">${it.customer}</div>
+          <div class="disp-item">Active AMC contract</div>
+        </div>
+        <div class="disp-date">This month</div>
+        <div class="disp-days expired-text">NOT SCHEDULED</div>
+      </div>`;
+  }
+  if (it.reported) {
+    return `
+      <div class="disp-row reported">
+        <div class="disp-type-badge visit">Visit</div>
+        <div>
+          <div class="disp-customer">${it.customer}</div>
+        </div>
+        <div class="disp-date">Visited ${fmtDispDate(it.next_visit_date)}</div>
+        <div class="disp-days reported-text">REPORT UPDATED</div>
+      </div>`;
+  }
   const daysLabel = it.days === 0 ? 'today' : it.days === 1 ? '1d away' : `${it.days}d away`;
   return `
     <div class="disp-row visit">
@@ -155,10 +185,11 @@ function renderVisitRow(it) {
 }
 
 async function loadData() {
-  const [{ data: contracts }, { data: subs }, { data: visits }] = await Promise.all([
-    sb.from('contracts').select('contract_number, end_date, profiles!contracts_customer_id_fkey(name)').eq('status', 'active'),
+  const [{ data: contracts }, { data: subs }, { data: allCustomers }, { data: reports }] = await Promise.all([
+    sb.from('contracts').select('contract_number, end_date, customer_id, profiles!contracts_customer_id_fkey(name)').eq('status', 'active'),
     sb.from('subscriptions').select('software_name, vendor, end_date, profiles!subscriptions_customer_id_fkey(name)'),
-    sb.from('profiles').select('name, next_visit_date').eq('role', 'customer').is('customer_id', null).not('next_visit_date', 'is', null),
+    sb.from('profiles').select('id, name, next_visit_date').eq('role', 'customer').is('customer_id', null),
+    sb.from('visit_reports').select('customer_id, visit_date'),
   ]);
 
   const renewalItems = [];
@@ -173,13 +204,39 @@ async function loadData() {
   renewalItems.sort((a, b) => a.days - b.days);
   _renewalItems = renewalItems;
 
-  const visitItems = [];
-  (visits || []).forEach(p => {
-    const days = daysUntil(p.next_visit_date);
-    if (days >= 0 && days <= VISIT_THRESHOLD_DAYS) visitItems.push({ customer: p.name, next_visit_date: p.next_visit_date, days });
+  const visitDateByCustomer = {};
+  (allCustomers || []).forEach(p => { visitDateByCustomer[p.id] = p.next_visit_date; });
+
+  // Active-AMC companies (dedup by customer, they may hold multiple active contracts)
+  // that have no visit dated within the current calendar month.
+  const activeContractCustomers = new Map();
+  (contracts || []).forEach(c => {
+    if (c.customer_id) activeContractCustomers.set(c.customer_id, c.profiles?.name || '—');
   });
-  visitItems.sort((a, b) => a.days - b.days);
-  _visitItems = visitItems;
+  const notScheduledItems = [];
+  activeContractCustomers.forEach((name, custId) => {
+    if (!isInCurrentMonth(visitDateByCustomer[custId])) notScheduledItems.push({ customer: name, notScheduled: true });
+  });
+  notScheduledItems.sort((a, b) => a.customer.localeCompare(b.customer));
+
+  // A visit report already filed for the customer on their scheduled date means
+  // that visit is done — show it as reported instead of a pending countdown.
+  const reportedKeys = new Set((reports || []).map(r => r.customer_id + '|' + r.visit_date));
+
+  const pendingItems = [];
+  const reportedItems = [];
+  (allCustomers || []).forEach(p => {
+    if (!p.next_visit_date) return;
+    const days = daysUntil(p.next_visit_date);
+    if (days < 0 || days > VISIT_THRESHOLD_DAYS) return;
+    const item = { customer: p.name, next_visit_date: p.next_visit_date, days };
+    if (reportedKeys.has(p.id + '|' + p.next_visit_date)) reportedItems.push({ ...item, reported: true });
+    else pendingItems.push(item);
+  });
+  pendingItems.sort((a, b) => a.days - b.days);
+  reportedItems.sort((a, b) => a.days - b.days);
+
+  _visitItems = [...notScheduledItems, ...pendingItems, ...reportedItems];
 
   buildPages();
   renderCurrentPage();
@@ -212,7 +269,7 @@ function renderCurrentPage() {
   if (!page.items.length) {
     const emptyMsg = page.section === 'renewal'
       ? `✓ Nothing expiring in the next ${RENEWAL_THRESHOLD_DAYS} days — all clear.`
-      : `✓ No visits scheduled in the next ${VISIT_THRESHOLD_DAYS} days.`;
+      : `✓ No visits scheduled in the next ${VISIT_THRESHOLD_DAYS} days, and every active AMC company has a visit set this month.`;
     grid.innerHTML = `<div class="disp-empty">${emptyMsg}</div>`;
   } else {
     grid.innerHTML = page.items.map(it => page.section === 'renewal' ? renderRenewalRow(it) : renderVisitRow(it)).join('');

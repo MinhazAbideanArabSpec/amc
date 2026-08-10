@@ -15,6 +15,10 @@ var CHECKLIST = [
 var reportState = {};
 // Notes: { assetId: { sectionName: note } }
 var reportSectionNotes = {};
+// Which section names apply to each asset — defaults to CHECKLIST, but older
+// reports saved under a since-removed per-category checklist keep their own
+// original section names so their data still displays and edits correctly.
+var reportAssetSections = {};
 var reportCustomerAssets = [];
 // Issue tags selected in this visit: { assetId: { section: [tagId, ...] } }
 var reportIssueTags = {};
@@ -73,6 +77,7 @@ async function openCreateReportModal() {
   reportIssueTags = {};
   await fetchAllTagDefs();
   reportSectionNotes = {};
+  reportAssetSections = {};
   reportCustomerAssets = [];
 
 
@@ -99,6 +104,7 @@ async function openCreateReportModal() {
 async function openEditReportModal(reportId) {
   reportState = {};
   reportSectionNotes = {};
+  reportAssetSections = {};
   reportIssueTags = {};
   await fetchAllTagDefs();
   reportCustomerAssets = [];
@@ -164,12 +170,19 @@ async function openEditReportModal(reportId) {
     });
   }
 
-  // Initialize state — one result per section
+  // Initialize state — one result per section.
+  // Older reports may have been saved under a different (now-removed)
+  // per-category checklist, so use whichever section names the report
+  // actually has saved rather than assuming today's CHECKLIST.
   assets.forEach(a => {
     const existing = existingMap[a.id];
     reportState[a.id] = {};
     reportSectionNotes[a.id] = existing?.sectionNotes || {};
-    CHECKLIST.forEach(s => {
+    const savedSections = existing?.checks.length
+      ? [...new Set(existing.checks.map(ch => ch.section))]
+      : null;
+    reportAssetSections[a.id] = savedSections || CHECKLIST.slice();
+    reportAssetSections[a.id].forEach(s => {
       const match = existing?.checks.find(ch => ch.section === s && ch.sub_check === s);
       reportState[a.id][s] = match?.result || null;
     });
@@ -206,7 +219,7 @@ function renderEditAssetSelection(assets, previouslyIncludedIds) {
     // Restore PASS/OK/FAIL, section notes, and issue tag checkboxes
     setTimeout(() => {
       selectedAssets.forEach(a => {
-        CHECKLIST.forEach(s => {
+        (reportAssetSections[a.id] || CHECKLIST).forEach(s => {
           const result = reportState[a.id]?.[s];
           if (result) {
             const key = slugify(a.id + s);
@@ -290,6 +303,7 @@ function onAssetSelectionChange() {
     if (!reportState[a.id]) {
       reportState[a.id] = {};
       reportSectionNotes[a.id] = {};
+      reportAssetSections[a.id] = CHECKLIST.slice();
       CHECKLIST.forEach(s => { reportState[a.id][s] = null; });
     }
   });
@@ -316,7 +330,7 @@ function renderChecklistForm(assets) {
         <span class="a-sub">${a.name} · ${a.category}</span>
       </div>
 
-      ${CHECKLIST.map(s => `
+      ${(reportAssetSections[a.id] || CHECKLIST).map(s => `
         <div class="report-section-block">
           <div class="report-check-row">
             <span class="report-check-label" style="font-weight:600;font-size:13px;">${s}</span>
@@ -442,8 +456,10 @@ async function saveVisitReport() {
       .select().single();
     if (vraError || !vra) continue;
 
-    // One row per section
-    const checks = CHECKLIST.map(s => ({
+    // One row per section (asset's own section list — preserves legacy
+    // checklist names for older reports instead of overwriting them)
+    const sections = reportAssetSections[asset.id] || CHECKLIST;
+    const checks = sections.map(s => ({
       visit_report_asset_id: vra.id,
       section: s,
       sub_check: s,
@@ -609,9 +625,12 @@ async function openVisitDetail(visitNumber, customerId) {
             ${overall.toUpperCase()}</span>` : ''}
         </div>
 
-        <!-- Checklist sections -->
+        <!-- Checklist sections (uses this report's own saved section names —
+             older reports may use a different, now-removed checklist) -->
         <div style="padding:0 16px;">
-          ${CHECKLIST.map((s, i) => {
+          ${(() => {
+            const reportSections = [...new Set(assetChecks.map(c => c.section))];
+            return reportSections.map((s, i) => {
             const chk = assetChecks.find(c => c.section === s);
             const result = chk?.result || null;
             const note = sectionNotes[s] || chk?.notes || '';
@@ -621,7 +640,7 @@ async function openVisitDetail(visitNumber, customerId) {
             const resultBg    = result === 'pass' ? '#EAFAF1' : result === 'ok' ? '#FEF9E7' : '#FDEDEC';
             return `
               <div style="display:flex;align-items:flex-start;justify-content:space-between;
-                padding:10px 0;${i < CHECKLIST.length - 1 ? 'border-bottom:1px solid #F1F5F9;' : ''}">
+                padding:10px 0;${i < reportSections.length - 1 ? 'border-bottom:1px solid #F1F5F9;' : ''}">
                 <div style="flex:1;padding-right:12px;">
                   <div style="font-size:13px;font-weight:600;color:var(--ink);">${s}</div>
                   ${note ? `<div style="font-size:11.5px;color:#8A8377;margin-top:3px;">${note}</div>` : ''}
@@ -634,7 +653,8 @@ async function openVisitDetail(visitNumber, customerId) {
                   ${result.toUpperCase()}
                 </span>
               </div>`;
-          }).join('')}
+            }).join('');
+          })()}
         </div>
 
       </div>`;
@@ -700,7 +720,7 @@ async function openReportDetail(reportId) {
           </div>
           ${overallBadge}
         </div>
-        ${CHECKLIST.map(s => {
+        ${(assetChecks.length ? [...new Set(assetChecks.map(c => c.section))] : CHECKLIST).map(s => {
           const match = assetChecks.find(c => c.section === s);
           const result = match?.result || null;
           const note = sectionNotes[s];

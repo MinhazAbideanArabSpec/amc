@@ -546,11 +546,17 @@
     .asset-tag-section-label { font-size: 11px; font-weight: 700; color: #8A8377; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 3px; }
 
     /* ── Issue tags ── */
-    .tag-section-block { margin-bottom: 18px; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-    .tag-section-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--bg); border-bottom: 1px solid var(--line); }
+    .tag-group-block { margin-bottom: 28px; }
+    .tag-group-header { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+    .tag-group-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .tag-group-title { font-size: 11.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; }
+    .tag-group-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 14px; align-items: start; }
+
+    .tag-section-block { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--card); }
+    .tag-section-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--slate-bg); border-bottom: 1px solid var(--line); }
     .tag-section-title { font-size: 13px; font-weight: 700; color: var(--ink); }
     .tag-list { padding: 10px 14px; display: flex; flex-wrap: wrap; gap: 8px; }
-    .tag-item { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; background: var(--bg); border: 1px solid var(--line); font-size: 12px; }
+    .tag-item { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; background: var(--slate-bg); border: 1px solid var(--line); font-size: 12px; }
     .tag-item-label { font-weight: 500; color: var(--ink); }
     .tag-item-del { cursor: pointer; color: var(--rust); font-size: 14px; line-height: 1; background: none; border: none; padding: 0; }
     .tag-add-row { display: flex; gap: 8px; padding: 8px 14px 12px; border-top: 1px solid var(--line); }

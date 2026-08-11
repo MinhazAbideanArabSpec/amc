@@ -14,19 +14,27 @@ async function loadTagsTab() {
 
   allTagDefs = tags || [];
 
-  // Group by section
+  // Group by section — using every section actually present in the data,
+  // not just today's End User checklist, so Data Center's own checklist
+  // sections (and their tags) aren't silently dropped from this page.
   const groups = {};
-  CHECKLIST.forEach(s => { groups[s] = []; });
-  allTagDefs.forEach(t => { if (groups[t.section]) groups[t.section].push(t); });
+  CHECKLIST.forEach(s => { groups[s] = []; }); // always show all EU sections, even with 0 tags
+  allTagDefs.forEach(t => {
+    if (!groups[t.section]) groups[t.section] = [];
+    groups[t.section].push(t);
+  });
+  const dcSections = Object.keys(groups).filter(s => !CHECKLIST.includes(s)).sort();
 
-  body.innerHTML = CHECKLIST.map(section => `
+  function renderSection(section) {
+    const sectionTags = groups[section];
+    return `
     <div class="tag-section-block">
       <div class="tag-section-header">
         <span class="tag-section-title">${section}</span>
-        <span style="font-size:11px;color:#8A8377;">${groups[section].length} tag${groups[section].length !== 1 ? 's' : ''}</span>
+        <span style="font-size:11px;color:#8A8377;">${sectionTags.length} tag${sectionTags.length !== 1 ? 's' : ''}</span>
       </div>
       <div class="tag-list" id="taglist-${slugifySection(section)}">
-        ${groups[section].map(t => `
+        ${sectionTags.map(t => `
           <div class="tag-item" id="tagitem-${t.id}">
             <div style="display:flex;flex-direction:column;flex:1;min-width:0;">
               <span class="tag-item-label" id="taglabel-${t.id}">${t.label}</span>
@@ -35,7 +43,7 @@ async function loadTagsTab() {
                 <input type="text" id="taginput-${t.id}" value="${t.label}"
                   style="margin-bottom:0;padding:2px 6px;font-size:12px;height:24px;" placeholder="English"
                   onkeydown="if(event.key==='Enter') saveTagEdit('${t.id}'); if(event.key==='Escape') cancelTagEdit('${t.id}')"/>
-                <input type="text" id="taginput-ar-${t.id}" value="${t.label_ar || ''}" 
+                <input type="text" id="taginput-ar-${t.id}" value="${t.label_ar || ''}"
                   style="margin-bottom:0;padding:2px 6px;font-size:12px;height:24px;direction:rtl;" placeholder="العربية"
                   onkeydown="if(event.key==='Enter') saveTagEdit('${t.id}'); if(event.key==='Escape') cancelTagEdit('${t.id}')"/>
               </div>
@@ -51,8 +59,26 @@ async function loadTagsTab() {
           onkeydown="if(event.key==='Enter') addTag('${section}')"/>
         <button onclick="addTag('${section}')" style="padding:6px 14px;font-size:12.5px;">+ Add</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }
+
+  function renderGroup(title, dotColor, sections) {
+    if (!sections.length) return '';
+    return `
+      <div class="tag-group-block">
+        <div class="tag-group-header">
+          <span class="tag-group-dot" style="background:${dotColor};"></span>
+          <span class="tag-group-title" style="color:${dotColor};">${title}</span>
+        </div>
+        <div class="tag-group-grid">
+          ${sections.map(renderSection).join('')}
+        </div>
+      </div>`;
+  }
+
+  body.innerHTML =
+    renderGroup('End User Checklist', '#166534', CHECKLIST) +
+    renderGroup('Data Center Checklist', '#3730A3', dcSections);
 }
 
 function slugifySection(s) {

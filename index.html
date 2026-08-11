@@ -263,6 +263,9 @@
             <h2>Clients</h2>
             <button onclick="openCreateModal()">+ Add Client</button>
           </div>
+          <div style="margin-bottom:14px;">
+            <input type="text" id="clients-search" oninput="renderClientsTable()" placeholder="Search by name or email…" style="max-width:280px;margin-bottom:0;"/>
+          </div>
           <table>
             <thead>
               <tr><th>Name</th><th>Email</th><th>Status</th><th>Last Login</th><th>Actions</th></tr>
@@ -280,6 +283,9 @@
           <div class="card-header">
             <h2>Admin Users</h2>
             <button onclick="openCreateModal()">+ Create User</button>
+          </div>
+          <div style="margin-bottom:14px;">
+            <input type="text" id="users-search" oninput="renderUsersTable()" placeholder="Search by name or email…" style="max-width:280px;margin-bottom:0;"/>
           </div>
           <table>
             <thead>
@@ -299,6 +305,9 @@
             <h2>Contracts</h2>
             <button onclick="openCreateContractModal()">+ Create Contract</button>
           </div>
+          <div style="margin-bottom:14px;">
+            <input type="text" id="contracts-search" oninput="renderContractsTable()" placeholder="Search by contract #, customer, or type…" style="max-width:280px;margin-bottom:0;"/>
+          </div>
           <table>
             <thead>
               <tr><th>Contract #</th><th>Customer</th><th>Type</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr>
@@ -317,10 +326,11 @@
             <h2>Assets</h2>
             <button onclick="openCreateAssetModal()">+ Add Asset</button>
           </div>
-          <div style="margin-bottom:14px;">
+          <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;">
             <select id="asset-customer-filter" onchange="loadAssetsList()" style="max-width:280px; margin-bottom:0;">
               <option value="">All Customers</option>
             </select>
+            <input type="text" id="assets-search" oninput="renderAssetsTable()" placeholder="Search by name, employee, category, or location…" style="max-width:300px;margin-bottom:0;"/>
           </div>
           <table>
             <thead>
@@ -340,10 +350,11 @@
             <h2>Visit Reports</h2>
             <button onclick="openCreateReportModal()">+ New Visit Report</button>
           </div>
-          <div style="margin-bottom:14px;">
+          <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;">
             <select id="report-customer-filter" onchange="loadReportsList()" style="max-width:280px; margin-bottom:0;">
               <option value="">All Customers</option>
             </select>
+            <input type="text" id="reports-search" oninput="renderReportsTable()" placeholder="Search by visit #, customer, or engineer…" style="max-width:300px;margin-bottom:0;"/>
           </div>
           <table>
             <thead>
@@ -376,10 +387,11 @@
             <h2>Subscriptions</h2>
             <button onclick="openCreateSubModal()">+ Add Subscription</button>
           </div>
-          <div style="margin-bottom:14px;">
+          <div style="margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;">
             <select id="sub-customer-filter" onchange="loadSubscriptions()" style="max-width:280px;margin-bottom:0;">
               <option value="">All Customers</option>
             </select>
+            <input type="text" id="subs-search" oninput="renderSubsTable()" placeholder="Search by software, vendor, or customer…" style="max-width:300px;margin-bottom:0;"/>
           </div>
           <div id="subs-list">
             <div class="empty-state">Loading…</div>

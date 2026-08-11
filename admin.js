@@ -274,6 +274,8 @@ async function populateAssetCustomerFilter() {
   sel.value = current;
 }
 
+var _assetsData = [];
+
 async function loadAssetsList() {
   await populateAssetCustomerFilter();
   await loadHealthStatuses();
@@ -282,6 +284,7 @@ async function loadAssetsList() {
   const tbody = document.getElementById('assets-tbody');
 
   if (!filterId) {
+    _assetsData = [];
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Select a customer to view their assets.</td></tr>`;
     return;
   }
@@ -297,12 +300,30 @@ async function loadAssetsList() {
     tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error: ${error.message}</td></tr>`;
     return;
   }
-  if (!assets.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No assets yet.</td></tr>`;
+
+  _assetsData = assets || [];
+  renderAssetsTable();
+}
+
+function renderAssetsTable() {
+  const tbody = document.getElementById('assets-tbody');
+  if (!tbody) return;
+
+  const q = document.getElementById('assets-search')?.value.trim().toLowerCase() || '';
+  const rows = q
+    ? _assetsData.filter(a =>
+        (a.employee_name || '').toLowerCase().includes(q) ||
+        (a.name || '').toLowerCase().includes(q) ||
+        (a.category || '').toLowerCase().includes(q) ||
+        (a.location || '').toLowerCase().includes(q))
+    : _assetsData;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${_assetsData.length ? 'No assets match your search.' : 'No assets yet.'}</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = assets.map(a => `
+  tbody.innerHTML = rows.map(a => `
     <tr>
       <td style="font-weight:600;">${a.employee_name || '<span style="color:#9CA3AF;">—</span>'}</td>
       <td style="color:var(--ink-soft);">${a.name}</td>

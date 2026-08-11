@@ -27,6 +27,8 @@ var allVisitStatuses = [];
 // ═══════════════════════════════════════════════════════
 //  Admin list
 // ═══════════════════════════════════════════════════════
+var _reportsData = [];
+
 async function loadReportsList() {
   const tbody = document.getElementById('reports-tbody');
 
@@ -44,19 +46,41 @@ async function loadReportsList() {
 
   const { data: reports, error } = await query;
   if (error) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error: ${error.message}</td></tr>`; return; }
-  if (!reports.length) { tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No visit reports yet.</td></tr>`; return; }
 
-  tbody.innerHTML = reports.map(r => {
-    const assetNames = (r.visit_report_assets || [])
+  _reportsData = (reports || []).map(r => ({
+    ...r,
+    _assetNames: (r.visit_report_assets || [])
       .map(vra => vra.assets?.employee_name || vra.assets?.name)
-      .filter(Boolean).join(', ');
-    return `
+      .filter(Boolean).join(', ')
+  }));
+  renderReportsTable();
+}
+
+function renderReportsTable() {
+  const tbody = document.getElementById('reports-tbody');
+  if (!tbody) return;
+
+  const q = document.getElementById('reports-search')?.value.trim().toLowerCase() || '';
+  const rows = q
+    ? _reportsData.filter(r =>
+        r.visit_number.toLowerCase().includes(q) ||
+        (r.profiles?.name || '').toLowerCase().includes(q) ||
+        (r.engineer_name || '').toLowerCase().includes(q) ||
+        r._assetNames.toLowerCase().includes(q))
+    : _reportsData;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${_reportsData.length ? 'No visit reports match your search.' : 'No visit reports yet.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(r => `
     <tr>
       <td style="font-weight:600;">${r.visit_number}</td>
       <td>${r.profiles?.name || '—'}</td>
       <td>${fmtDate(r.visit_date)}</td>
       <td>${r.engineer_name}</td>
-      <td style="font-size:12px;color:var(--accent);font-weight:600;">${assetNames || '—'}</td>
+      <td style="font-size:12px;color:var(--accent);font-weight:600;">${r._assetNames || '—'}</td>
       <td><span class="badge ${r.status === 'completed' ? 'active-badge' : 'pending-badge'}">${r.status}</span></td>
       <td>
         <div class="row-actions">
@@ -65,8 +89,7 @@ async function loadReportsList() {
           <button class="danger" onclick="deleteReport('${r.id}', '${r.visit_number.replace(/'/g,"\\'")}')">Delete</button>
         </div>
       </td>
-    </tr>`;
-  }).join('');
+    </tr>`).join('');
 }
 
 // ═══════════════════════════════════════════════════════

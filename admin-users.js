@@ -1,6 +1,8 @@
 // admin-users.js — user management, staff, view-as
 
 // ── Admin: load & render user list ──────────────────────
+var _clientsData = [];
+
 async function loadClientsList() {
   const tbody = document.getElementById('clients-tbody');
   if (!tbody) return;
@@ -9,13 +11,30 @@ async function loadClientsList() {
     .select('*').eq('role', 'customer').is('customer_id', null).order('name');
 
   if (error) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Error: ${error.message}</td></tr>`; return; }
-  if (!clients || !clients.length) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">No clients yet.</td></tr>`; return; }
 
   const { data: allStaff } = await sb.from('profiles').select('customer_id').not('customer_id', 'is', null);
   const staffCount = {};
   (allStaff || []).forEach(s => { staffCount[s.customer_id] = (staffCount[s.customer_id] || 0) + 1; });
 
-  tbody.innerHTML = clients.map(u => `
+  _clientsData = (clients || []).map(u => ({ ...u, _staffCount: staffCount[u.id] || 0 }));
+  renderClientsTable();
+}
+
+function renderClientsTable() {
+  const tbody = document.getElementById('clients-tbody');
+  if (!tbody) return;
+
+  const q = document.getElementById('clients-search')?.value.trim().toLowerCase() || '';
+  const rows = q
+    ? _clientsData.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+    : _clientsData;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${_clientsData.length ? 'No clients match your search.' : 'No clients yet.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(u => `
     <tr>
       <td style="font-weight:600;">${u.name}</td>
       <td>${u.email}</td>
@@ -25,7 +44,7 @@ async function loadClientsList() {
         <div class="row-actions">
           <button class="secondary" onclick="openEditModal('${u.id}')">Edit</button>
           <button class="secondary" style="background:var(--accent);color:#fff;border-color:var(--accent);" onclick="viewAsCustomer('${u.id}')">Login as Client</button>
-          <button class="secondary" onclick="openStaffModal('${u.id}', '${u.name.replace(/'/g, "\'")}')">Staff ${staffCount[u.id] ? `(${staffCount[u.id]})` : ''}</button>
+          <button class="secondary" onclick="openStaffModal('${u.id}', '${u.name.replace(/'/g, "\'")}')">Staff ${u._staffCount ? `(${u._staffCount})` : ''}</button>
           <button class="secondary" onclick="toggleActive('${u.id}', ${u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>
           <button class="danger" onclick="deleteUser('${u.id}', '${u.name.replace(/'/g, "\'")}')">Delete</button>
         </div>
@@ -33,6 +52,8 @@ async function loadClientsList() {
     </tr>
   `).join('');
 }
+
+var _usersData = [];
 
 async function loadUsersList() {
   // Only show root accounts (not staff sub-accounts)
@@ -46,10 +67,6 @@ async function loadUsersList() {
     tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Error loading users: ${error.message}</td></tr>`;
     return;
   }
-  if (!users.length) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">No users yet.</td></tr>`;
-    return;
-  }
 
   // Count staff per customer
   const { data: allStaff } = await sb.from('profiles')
@@ -60,7 +77,25 @@ async function loadUsersList() {
     staffCount[s.customer_id] = (staffCount[s.customer_id] || 0) + 1;
   });
 
-  tbody.innerHTML = users.map(u => `
+  _usersData = (users || []).map(u => ({ ...u, _staffCount: staffCount[u.id] || 0 }));
+  renderUsersTable();
+}
+
+function renderUsersTable() {
+  const tbody = document.getElementById('users-tbody');
+  if (!tbody) return;
+
+  const q = document.getElementById('users-search')?.value.trim().toLowerCase() || '';
+  const rows = q
+    ? _usersData.filter(u => u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q) || u.role.toLowerCase().includes(q))
+    : _usersData;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${_usersData.length ? 'No users match your search.' : 'No users yet.'}</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map(u => `
     <tr>
       <td style="font-weight:600;">${u.name}</td>
       <td>${u.email}</td>
@@ -73,7 +108,7 @@ async function loadUsersList() {
           ${u.role === 'customer' ? `
             <button class="secondary" onclick="viewAsCustomer('${u.id}')">View As</button>
             <button class="secondary" onclick="openStaffModal('${u.id}', '${u.name.replace(/'/g, "\\'")}')">
-              Staff ${staffCount[u.id] ? `(${staffCount[u.id]})` : ''}
+              Staff ${u._staffCount ? `(${u._staffCount})` : ''}
             </button>
             <button class="secondary" onclick="triggerLogoUpload('${u.id}')">${u.logo_path ? 'Change Logo' : 'Upload Logo'}</button>
           ` : ''}
@@ -351,6 +386,8 @@ async function deleteUser(userId, name) {
 // ═══════════════════════════════════════════════════════
 var editingContractId = null;
 
+var _contractsData = [];
+
 async function loadContractsList() {
   const tbody = document.getElementById('contracts-tbody');
   const { data: contracts, error } = await sb
@@ -362,12 +399,29 @@ async function loadContractsList() {
     tbody.innerHTML = `<tr><td colspan="7" class="empty-state">Error: ${error.message}</td></tr>`;
     return;
   }
-  if (!contracts.length) {
-    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">No contracts yet.</td></tr>`;
+
+  _contractsData = contracts || [];
+  renderContractsTable();
+}
+
+function renderContractsTable() {
+  const tbody = document.getElementById('contracts-tbody');
+  if (!tbody) return;
+
+  const q = document.getElementById('contracts-search')?.value.trim().toLowerCase() || '';
+  const rows = q
+    ? _contractsData.filter(c =>
+        c.contract_number.toLowerCase().includes(q) ||
+        (c.profiles?.name || '').toLowerCase().includes(q) ||
+        (c.contract_type || '').toLowerCase().includes(q))
+    : _contractsData;
+
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="7" class="empty-state">${_contractsData.length ? 'No contracts match your search.' : 'No contracts yet.'}</td></tr>`;
     return;
   }
 
-  tbody.innerHTML = contracts.map(c => `
+  tbody.innerHTML = rows.map(c => `
     <tr>
       <td style="font-weight:600;">${c.contract_number}</td>
       <td>${c.profiles?.name || '—'}</td>

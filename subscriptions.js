@@ -83,7 +83,20 @@ function renderSubsTable() {
   const el = document.getElementById('subs-list');
   if (!_subsData.length) { el.innerHTML = `<div class="empty-state">No subscriptions yet. Click + Add Subscription to get started.</div>`; return; }
 
-  const sorted = [..._subsData].sort((a, b) => {
+  const q = document.getElementById('subs-search')?.value.trim().toLowerCase() || '';
+  const filtered = q
+    ? _subsData.filter(s =>
+        s.software_name.toLowerCase().includes(q) ||
+        (s.vendor || '').toLowerCase().includes(q) ||
+        (s.profiles?.name || '').toLowerCase().includes(q))
+    : _subsData;
+
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-state">No subscriptions match your search.</div>`;
+    return;
+  }
+
+  const sorted = [...filtered].sort((a, b) => {
     const av = subSortValue(a, _subsSort.key), bv = subSortValue(b, _subsSort.key);
     const cmp = av < bv ? -1 : av > bv ? 1 : 0;
     return _subsSort.dir === 'asc' ? cmp : -cmp;

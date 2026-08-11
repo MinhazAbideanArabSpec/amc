@@ -259,12 +259,6 @@ async function saveUser() {
       saveBtn.disabled = false;
       return;
     }
-    if (!password || password.length < 6) {
-      errEl.textContent = 'Password must be at least 6 characters.';
-      errEl.style.display = 'block';
-      saveBtn.disabled = false;
-      return;
-    }
 
     const { data: { session } } = await sb.auth.getSession();
 

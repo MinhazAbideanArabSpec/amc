@@ -440,11 +440,10 @@ async function downloadDashboardPDF(btn) {
     const assets       = customerAssetsCache || [];
     const tagGroups    = window._dashTagGroups || {};
 
-    const [{ data: subs }, { data: visits }, { data: completedNums }, { data: assignments }, { data: latestVras }] = await Promise.all([
+    const [{ data: subs }, { data: visits }, { data: completedNums }, { data: latestVras }] = await Promise.all([
       sb.from('subscriptions').select('*').eq('customer_id', customerId).order('end_date', { ascending: true }),
       sb.from('visit_reports').select('id, visit_number, visit_date, engineer_name').eq('customer_id', customerId).order('visit_date', { ascending: false }).limit(8),
       sb.from('visit_reports').select('visit_number').eq('customer_id', customerId).eq('status', 'completed'),
-      sb.from('asset_status_assignments').select('asset_id, asset_statuses(name)').eq('customer_id', customerId).eq('is_resolved', false),
       assets.length
         ? sb.from('visit_report_assets').select('id, asset_id').in('asset_id', assets.map(a => a.id)).order('created_at', { ascending: false })
         : Promise.resolve({ data: [] }),
@@ -459,13 +458,7 @@ async function downloadDashboardPDF(btn) {
       (vraRows || []).forEach(r => { visitAssetCounts[r.visit_report_id] = (visitAssetCounts[r.visit_report_id] || 0) + 1; });
     }
 
-    // ── Per-asset status + latest visit checklist/tags, for the Asset-Based Report page ──
-    const assetStatusMap = {};
-    (assignments || []).forEach(a => {
-      if (!assetStatusMap[a.asset_id]) assetStatusMap[a.asset_id] = [];
-      if (a.asset_statuses?.name) assetStatusMap[a.asset_id].push(a.asset_statuses.name);
-    });
-
+    // ── Latest visit checklist/tags per asset, for the Asset-Based Report page ──
     const latestVraByAsset = {};
     (latestVras || []).forEach(v => { if (!latestVraByAsset[v.asset_id]) latestVraByAsset[v.asset_id] = v.id; });
     const latestVraIds = Object.values(latestVraByAsset);
@@ -589,7 +582,6 @@ async function downloadDashboardPDF(btn) {
       doc.setFontSize(8.5);
       doc.setTextColor(...PDF_MUTED);
       doc.text(subtitle, 14, 32);
-      doc.text(customerName, pw - 14, 26, { align: 'right' });
       doc.setDrawColor(...PDF_LINE);
       doc.setLineWidth(0.4);
       doc.line(14, 37, pw - 14, 37);
@@ -742,12 +734,6 @@ async function downloadDashboardPDF(btn) {
       let justStartedPage = true;
 
       assets.forEach(asset => {
-        const statusNames = assetStatusMap[asset.id] || [];
-        const status = statusNames.includes('Critical') ? 'Critical'
-          : statusNames.includes('Warning') ? 'Warning'
-          : statusNames.length ? statusNames[0] : 'No Active Status';
-        const statusRgb = status === 'Critical' ? PDF_RED : status === 'Warning' ? PDF_AMBER : status === 'Pass' ? PDF_GREEN : PDF_SLATE;
-
         const vraId = latestVraByAsset[asset.id];
         const checks = vraId ? (checksByVra[vraId] || []) : [];
         const tags = vraId ? (tagsByVra[vraId] || []) : [];
@@ -776,12 +762,6 @@ async function downloadDashboardPDF(btn) {
 
         doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...PDF_DARK);
         doc.text(asset.employee_name || asset.name, 14, y);
-        {
-          const statusLabel = status.toUpperCase();
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
-          const statusW = doc.getStringUnitWidth(statusLabel) * (7 / doc.internal.scaleFactor) + 8;
-          pdfBadge(doc, statusLabel, pw - 14 - statusW, y - 4, statusRgb);
-        }
         y += 5.5;
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_MUTED);
         doc.text(`${asset.category || '-'}${asset.name && asset.name !== asset.employee_name ? '  -  ' + asset.name : ''}`, 14, y);

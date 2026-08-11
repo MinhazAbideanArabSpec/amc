@@ -421,6 +421,7 @@ async function downloadVisitReportPDF(reportId, visitNum, visitDate, engineerNam
 //  Page 1: Executive Summary  — verdict, plain-language narrative, headline stats
 //  Page 2: Priorities         — one sorted list of everything worth acting on
 //  Page 3: Assets & Visits    — reference detail for readers who want to dig in
+//  Page 4: Asset-Based Report — per-device checklist detail, OK/FAIL sections only
 // ─────────────────────────────────────────────────────────────
 async function downloadDashboardPDF(btn) {
   btn = btn || (event && event.target && event.target.closest('button')) || { innerHTML: '', disabled: false };
@@ -439,10 +440,14 @@ async function downloadDashboardPDF(btn) {
     const assets       = customerAssetsCache || [];
     const tagGroups    = window._dashTagGroups || {};
 
-    const [{ data: subs }, { data: visits }, { data: completedNums }] = await Promise.all([
+    const [{ data: subs }, { data: visits }, { data: completedNums }, { data: assignments }, { data: latestVras }] = await Promise.all([
       sb.from('subscriptions').select('*').eq('customer_id', customerId).order('end_date', { ascending: true }),
       sb.from('visit_reports').select('id, visit_number, visit_date, engineer_name').eq('customer_id', customerId).order('visit_date', { ascending: false }).limit(8),
       sb.from('visit_reports').select('visit_number').eq('customer_id', customerId).eq('status', 'completed'),
+      sb.from('asset_status_assignments').select('asset_id, asset_statuses(name)').eq('customer_id', customerId).eq('is_resolved', false),
+      assets.length
+        ? sb.from('visit_report_assets').select('id, asset_id').in('asset_id', assets.map(a => a.id)).order('created_at', { ascending: false })
+        : Promise.resolve({ data: [] }),
     ]);
     const subscriptions  = subs || [];
     const recentVisits   = visits || [];
@@ -452,6 +457,31 @@ async function downloadDashboardPDF(btn) {
     if (recentVisits.length) {
       const { data: vraRows } = await sb.from('visit_report_assets').select('visit_report_id').in('visit_report_id', recentVisits.map(v => v.id));
       (vraRows || []).forEach(r => { visitAssetCounts[r.visit_report_id] = (visitAssetCounts[r.visit_report_id] || 0) + 1; });
+    }
+
+    // ── Per-asset status + latest visit checklist/tags, for the Asset-Based Report page ──
+    const assetStatusMap = {};
+    (assignments || []).forEach(a => {
+      if (!assetStatusMap[a.asset_id]) assetStatusMap[a.asset_id] = [];
+      if (a.asset_statuses?.name) assetStatusMap[a.asset_id].push(a.asset_statuses.name);
+    });
+
+    const latestVraByAsset = {};
+    (latestVras || []).forEach(v => { if (!latestVraByAsset[v.asset_id]) latestVraByAsset[v.asset_id] = v.id; });
+    const latestVraIds = Object.values(latestVraByAsset);
+
+    let checksByVra = {};
+    let tagsByVra = {};
+    if (latestVraIds.length) {
+      const [{ data: allAssetChecks }, tagMap] = await Promise.all([
+        sb.from('visit_report_checks').select('*').in('visit_report_asset_id', latestVraIds),
+        fetchTagsForVras(latestVraIds),
+      ]);
+      (allAssetChecks || []).forEach(c => {
+        if (!checksByVra[c.visit_report_asset_id]) checksByVra[c.visit_report_asset_id] = [];
+        checksByVra[c.visit_report_asset_id].push(c);
+      });
+      tagsByVra = tagMap;
     }
 
     const actionItems = Object.values(tagGroups)
@@ -701,6 +731,76 @@ async function downloadDashboardPDF(btn) {
     } else {
       doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
       doc.text('No visit reports on file yet.', 14, y);
+    }
+
+    // ── Page 4: Asset-Based Report — per-device detail, issues only ──
+    if (assets.length) {
+      doc.addPage();
+      y = pageTop('Asset-Based Report', 'Per-device checklist detail - sections that need attention.');
+
+      assets.forEach((asset, idx) => {
+        const statusNames = assetStatusMap[asset.id] || [];
+        const status = statusNames.includes('Critical') ? 'Critical'
+          : statusNames.includes('Warning') ? 'Warning'
+          : statusNames.length ? statusNames[0] : 'No Active Status';
+        const statusRgb = status === 'Critical' ? PDF_RED : status === 'Warning' ? PDF_AMBER : status === 'Pass' ? PDF_GREEN : PDF_SLATE;
+
+        y = pdfCheckBreak(doc, y, 20);
+        if (idx > 0) {
+          doc.setDrawColor(...PDF_LINE); doc.setLineWidth(0.3);
+          doc.line(14, y - 6, pw - 14, y - 6);
+        }
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...PDF_DARK);
+        doc.text(asset.employee_name || asset.name, 14, y);
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...statusRgb);
+        doc.text(status, pw - 14, y, { align: 'right' });
+        y += 5.5;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_MUTED);
+        doc.text(`${asset.category || '-'}${asset.name && asset.name !== asset.employee_name ? '  -  ' + asset.name : ''}`, 14, y);
+        y += 9;
+
+        const vraId = latestVraByAsset[asset.id];
+        const checks = vraId ? (checksByVra[vraId] || []) : [];
+        const tags = vraId ? (tagsByVra[vraId] || []) : [];
+        const flagged = checks.filter(c => c.result === 'ok' || c.result === 'fail');
+
+        if (!vraId) {
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_MUTED);
+          doc.text('No visit report on file yet.', 14, y);
+          y += 10;
+          return;
+        }
+        if (!flagged.length) {
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...PDF_GREEN);
+          doc.text('All checked sections passed.', 14, y);
+          y += 10;
+          return;
+        }
+
+        flagged.forEach(chk => {
+          const sectionTags = tags.filter(t => t.section === chk.section);
+          const rgb = chk.result === 'fail' ? PDF_RED : PDF_AMBER;
+          const tagLines = sectionTags.map(t => `-  ${t.label}`);
+          const blockH = 6 + tagLines.length * 4.6 + 3;
+          y = pdfCheckBreak(doc, y, blockH + 2);
+
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_DARK);
+          doc.text(chk.section, 18, y);
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...rgb);
+          doc.text(chk.result.toUpperCase(), pw - 18, y, { align: 'right' });
+          y += 5;
+
+          doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3); doc.setTextColor(...PDF_MUTED);
+          tagLines.forEach(line => {
+            doc.text(line, 22, y);
+            y += 4.6;
+          });
+          y += 3;
+        });
+
+        y += 4;
+      });
     }
 
     pdfFooters(doc);

@@ -195,6 +195,7 @@
       color: var(--rust); background: var(--rust-bg); border-radius: 3px;
       padding: 10px 12px; font-size: 13px; margin-bottom: 14px; display: none;
     }
+    .req-mark { color: var(--rust); margin-left: 2px; }
 
     /* ── Customer view ── */
     .profile-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); }

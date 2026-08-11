@@ -113,6 +113,73 @@ function pdfTableHeader(doc, y, pw, cols) {
   return y + 7;
 }
 
+// Restrained stat card — white card, colored left accent, colored number, muted label.
+// Used instead of solid-fill tiles so a row of these reads as "report", not "dashboard".
+function pdfStatCard(doc, x, y, w, h, value, label, rgb) {
+  doc.setFillColor(252, 252, 251);
+  doc.setDrawColor(...PDF_LINE);
+  doc.setLineWidth(0.35);
+  doc.roundedRect(x, y, w, h, 2, 2, 'FD');
+  doc.setFillColor(...rgb);
+  doc.rect(x, y, 2.6, h, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(19);
+  doc.setTextColor(...rgb);
+  doc.text(String(value), x + 9, y + h * 0.48);
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(7.8);
+  doc.setTextColor(...PDF_MUTED);
+  const lines = doc.splitTextToSize(label, w - 15);
+  doc.text(lines, x + 9, y + h * 0.48 + 6.5);
+}
+
+// One row of the unified priority list — severity pill, title, one-line detail,
+// and a recommended next action. Height grows to fit wrapped text.
+function pdfPriorityCard(doc, y, pw, item) {
+  const rgb = item.severity === 'critical' ? PDF_RED : item.severity === 'warning' ? PDF_AMBER : PDF_SLATE;
+  const bg  = item.severity === 'critical' ? [253, 237, 236] : item.severity === 'warning' ? [250, 242, 226] : [246, 247, 248];
+  const label = item.severity === 'critical' ? 'ACT NOW' : item.severity === 'warning' ? 'WATCH' : 'FYI';
+
+  const textX = 26;
+  const textW = pw - 14 - textX - 4;
+  const detailLines = doc.splitTextToSize(item.detail, textW);
+  const actionLines = item.action ? doc.splitTextToSize(item.action, textW) : [];
+  const h = 9 + detailLines.length * 4.6 + (actionLines.length ? actionLines.length * 4.6 + 2 : 0) + 6;
+
+  y = pdfCheckBreak(doc, y, h + 2);
+
+  doc.setFillColor(...bg);
+  doc.roundedRect(14, y, pw - 28, h, 2, 2, 'F');
+  doc.setFillColor(...rgb);
+  doc.rect(14, y, 2.6, h, 'F');
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(6.5);
+  doc.setTextColor(...rgb);
+  doc.text(label, 20, y + 7);
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(9.5);
+  doc.setTextColor(...PDF_DARK);
+  doc.text(item.title, textX, y + 7);
+
+  let ty = y + 7 + 5.4;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8.3);
+  doc.setTextColor(...PDF_MUTED);
+  doc.text(detailLines, textX, ty);
+  ty += detailLines.length * 4.6;
+
+  if (actionLines.length) {
+    ty += 2;
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...rgb);
+    doc.text(actionLines.map((l, i) => i === 0 ? `-> ${l}` : l), textX, ty);
+  }
+
+  return y + h + 5;
+}
+
 // ─────────────────────────────────────────────────────────────
 //  VISIT REPORT PDF
 //  Matches the "View Report" modal exactly:
@@ -350,12 +417,10 @@ async function downloadVisitReportPDF(reportId, visitNum, visitDate, engineerNam
 }
 
 // ─────────────────────────────────────────────────────────────
-//  DASHBOARD PDF — plain-language report for non-technical readers
-//  Page 1: Summary (status banner + key numbers + contract bar)
-//  Page 2: Contract & Renewals
-//  Page 3: Asset Health Overview
-//  Page 4: Action Items (top issues, ranked by devices affected)
-//  Page 5: Visit History
+//  DASHBOARD PDF — reads like a memo, not a data export.
+//  Page 1: Executive Summary  — verdict, plain-language narrative, headline stats
+//  Page 2: Priorities         — one sorted list of everything worth acting on
+//  Page 3: Assets & Visits    — reference detail for readers who want to dig in
 // ─────────────────────────────────────────────────────────────
 async function downloadDashboardPDF(btn) {
   btn = btn || (event && event.target && event.target.closest('button')) || { innerHTML: '', disabled: false };
@@ -393,199 +458,217 @@ async function downloadDashboardPDF(btn) {
       .map(t => ({ label: t.label, count: t.assets.length }))
       .sort((a, b) => b.count - a.count);
 
+    // ── Shared derived figures ────────────────────────────────
+    const activeContract  = contracts.find(c => c.status === 'active') || contracts[0];
+    const contractDays    = activeContract ? Math.round((new Date(activeContract.end_date) - today) / 86400000) : null;
+    const contractExpired = contracts.some(c => c.status === 'expired') || (contractDays !== null && contractDays < 0);
+    const criticalCount   = healthCounts['Critical']?.count || 0;
+    const warningCount    = healthCounts['Warning']?.count || 0;
+    const expiredRenewals = subscriptions.filter(s => Math.round((new Date(s.end_date) - today) / 86400000) < 0);
+    const soonRenewals    = subscriptions.filter(s => { const d = Math.round((new Date(s.end_date) - today) / 86400000); return d >= 0 && d < 60; });
+    const renewalAlerts   = expiredRenewals.length + soonRenewals.length;
+    const itemsNeedingAttention = criticalCount + warningCount;
+
+    // ── Build the unified, severity-sorted priority list ──────
+    const priorityItems = [];
+    if (activeContract) {
+      if (contractDays < 0) {
+        priorityItems.push({ severity: 'critical', title: `Contract ${activeContract.contract_number} has expired`,
+          detail: `It ended ${pdfFmtDate(activeContract.end_date)}, ${Math.abs(contractDays)} days ago.`,
+          action: 'Renew the AMC contract to avoid a coverage gap.' });
+      } else if (contractDays < 30) {
+        priorityItems.push({ severity: 'warning', title: `Contract ${activeContract.contract_number} renews soon`,
+          detail: `${contractDays} day${contractDays === 1 ? '' : 's'} remaining, expires ${pdfFmtDate(activeContract.end_date)}.`,
+          action: 'Start the renewal conversation now to avoid a gap.' });
+      }
+    } else {
+      priorityItems.push({ severity: 'critical', title: 'No active AMC contract on file', detail: 'This account has no active maintenance contract recorded.', action: 'Confirm contract status with ArabSpec.' });
+    }
+    expiredRenewals.forEach(s => {
+      const d = Math.round((new Date(s.end_date) - today) / 86400000);
+      priorityItems.push({ severity: 'critical', title: `${s.software_name} license expired`,
+        detail: `${s.vendor ? s.vendor + ' - ' : ''}expired ${Math.abs(d)} day${Math.abs(d) === 1 ? '' : 's'} ago (${pdfFmtDate(s.end_date)}).`,
+        action: 'Renew to restore vendor support and updates.' });
+    });
+    soonRenewals.forEach(s => {
+      const d = Math.round((new Date(s.end_date) - today) / 86400000);
+      priorityItems.push({ severity: 'warning', title: `${s.software_name} license renews soon`,
+        detail: `${s.vendor ? s.vendor + ' - ' : ''}${d} day${d === 1 ? '' : 's'} left, expires ${pdfFmtDate(s.end_date)}.`,
+        action: 'Renew ahead of the expiry date.' });
+    });
+    actionItems.forEach(item => {
+      priorityItems.push({ severity: 'warning', title: item.label,
+        detail: `Affecting ${item.count} device${item.count === 1 ? '' : 's'} on your network.`,
+        action: 'Our engineers will address this on the next scheduled visit.' });
+    });
+    const severityRank = { critical: 0, warning: 1, info: 2 };
+    priorityItems.sort((a, b) => severityRank[a.severity] - severityRank[b.severity]);
+    const criticalItemCount = priorityItems.filter(i => i.severity === 'critical').length;
+    const warningItemCount  = priorityItems.filter(i => i.severity === 'warning').length;
+
+    // ── Plain-language narrative for the summary page ─────────
+    const sentences = [];
+    if (!activeContract) {
+      sentences.push('No active AMC contract is currently on file for this account.');
+    } else if (contractDays < 0) {
+      sentences.push(`Your AMC contract (${activeContract.contract_number}) expired ${Math.abs(contractDays)} day${Math.abs(contractDays) === 1 ? '' : 's'} ago and should be renewed as soon as possible.`);
+    } else {
+      sentences.push(`Your AMC contract (${activeContract.contract_number}) is active with ${contractDays} day${contractDays === 1 ? '' : 's'} remaining.`);
+    }
+    if (itemsNeedingAttention > 0) {
+      sentences.push(`${itemsNeedingAttention} asset${itemsNeedingAttention === 1 ? '' : 's'} currently need${itemsNeedingAttention === 1 ? 's' : ''} attention${actionItems.length ? `, most notably ${actionItems[0].label.toLowerCase()} (${actionItems[0].count} device${actionItems[0].count === 1 ? '' : 's'})` : ''}.`);
+    } else {
+      sentences.push('All monitored assets are currently in good health.');
+    }
+    if (subscriptions.length) {
+      if (renewalAlerts > 0) {
+        sentences.push(`${expiredRenewals.length} software renewal${expiredRenewals.length === 1 ? '' : 's'} ${expiredRenewals.length === 1 ? 'has' : 'have'} expired and ${soonRenewals.length} more ${soonRenewals.length === 1 ? 'is' : 'are'} due within 60 days.`);
+      } else {
+        sentences.push('All software renewals are up to date.');
+      }
+    }
+    sentences.push(recentVisits.length
+      ? `Your most recent visit was ${pdfFmtDate(recentVisits[0].visit_date)} (Visit #${recentVisits[0].visit_number}).`
+      : 'No visit reports are on file yet.');
+    const narrative = sentences.join(' ');
+
+    let verdictRgb, verdictLabel, verdictReason;
+    if (criticalItemCount > 0) {
+      verdictRgb = PDF_RED; verdictLabel = 'Action needed';
+      verdictReason = `${criticalItemCount} item${criticalItemCount === 1 ? '' : 's'} need${criticalItemCount === 1 ? 's' : ''} immediate attention`;
+    } else if (warningItemCount > 0) {
+      verdictRgb = PDF_AMBER; verdictLabel = 'Worth a look';
+      verdictReason = `${warningItemCount} item${warningItemCount === 1 ? '' : 's'} worth reviewing soon`;
+    } else {
+      verdictRgb = PDF_GREEN; verdictLabel = 'All good';
+      verdictReason = 'No outstanding issues found';
+    }
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
     const pw  = doc.internal.pageSize.getWidth();
 
-    // Shared page header for pages 2+
-    function pageTop(title) {
-      pdfBrandBar(doc, 'Dashboard Report');
-      doc.setFillColor(244, 246, 248);
-      doc.rect(0, 13, pw, 18, 'F');
+    // Shared, lighter-weight header for pages 2+
+    function pageTop(title, subtitle) {
+      pdfBrandBar(doc, 'AMC Health Report');
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
+      doc.setFontSize(15);
       doc.setTextColor(...PDF_DARK);
-      doc.text(customerName, 14, 23);
+      doc.text(title, 14, 26);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(7.5);
+      doc.setFontSize(8.5);
       doc.setTextColor(...PDF_MUTED);
-      doc.text(now.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }), 14, 28);
-      doc.text(`Generated: ${now.toLocaleString('en-GB')}`, pw - 14, 28, { align: 'right' });
+      doc.text(subtitle, 14, 32);
+      doc.text(customerName, pw - 14, 26, { align: 'right' });
       doc.setDrawColor(...PDF_LINE);
       doc.setLineWidth(0.4);
-      doc.line(0, 31, pw, 31);
-
-      doc.setFillColor(...PDF_ACCENT);
-      doc.rect(14, 37, 3, 8, 'F');
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(11);
-      doc.setTextColor(...PDF_ACCENT);
-      doc.text(title, 20, 43.5);
-      doc.setDrawColor(...PDF_LINE);
-      doc.setLineWidth(0.3);
-      doc.line(14, 46, pw - 14, 46);
-      return 54;
+      doc.line(14, 37, pw - 14, 37);
+      return 47;
     }
 
-    // ── Page 1: Summary ──────────────────────────────────────
-    pdfBrandBar(doc, 'Dashboard Report');
-    doc.setFillColor(...PDF_ACCENT);
-    doc.rect(0, 13, pw, 30, 'F');
+    // ── Page 1: Executive Summary ─────────────────────────────
+    pdfBrandBar(doc, 'AMC Health Report');
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8.5);
+    doc.setTextColor(...PDF_MUTED);
+    doc.text(now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), 14, 24);
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(19);
+    doc.setFontSize(21);
+    doc.setTextColor(...PDF_DARK);
+    doc.text(customerName, 14, 34);
+
+    let y = 46;
+
+    // Verdict banner — one clear line with the specific reason behind it
+    doc.setFillColor(...verdictRgb);
+    doc.roundedRect(14, y, pw - 28, 15, 2, 2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
     doc.setTextColor(255, 255, 255);
-    doc.text(customerName, 14, 30);
+    doc.text(verdictLabel, 20, y + 9.5);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text('Annual Maintenance Contract - Dashboard Report', 14, 37);
-    doc.setFontSize(8);
-    doc.text(now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), pw - 14, 37, { align: 'right' });
+    doc.text(verdictReason, pw - 20, y + 9.5, { align: 'right' });
+    y += 23;
 
-    let y = 52;
+    // Narrative paragraph — the actual "what's going on" summary
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...PDF_ACCENT);
+    doc.text('IN BRIEF', 14, y);
+    y += 6;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(...PDF_DARK);
+    const narrativeLines = doc.splitTextToSize(narrative, pw - 28);
+    doc.text(narrativeLines, 14, y, { lineHeightFactor: 1.5 });
+    y += narrativeLines.length * 5.7 + 12;
 
-    const activeContract = contracts.find(c => c.status === 'active') || contracts[0];
-    const contractDays   = activeContract ? Math.round((new Date(activeContract.end_date) - today) / 86400000) : null;
-    const criticalCount  = healthCounts['Critical']?.count || 0;
-    const warningCount   = healthCounts['Warning']?.count || 0;
-    const contractExpired = contracts.some(c => c.status === 'expired') || (contractDays !== null && contractDays < 0);
-    const expiredRenewals = subscriptions.filter(s => Math.round((new Date(s.end_date) - today) / 86400000) < 0).length;
-    const soonRenewals    = subscriptions.filter(s => { const d = Math.round((new Date(s.end_date) - today) / 86400000); return d >= 0 && d < 60; }).length;
-
-    // Plain-language status banner
-    let bannerRgb, bannerText;
-    if (criticalCount > 0 || contractExpired || expiredRenewals > 0) {
-      bannerRgb = PDF_RED;
-      bannerText = 'Some items need your attention soon.';
-    } else if (warningCount > 0 || soonRenewals > 0 || (contractDays !== null && contractDays < 60)) {
-      bannerRgb = PDF_AMBER;
-      bannerText = 'A few things are worth keeping an eye on.';
-    } else {
-      bannerRgb = PDF_GREEN;
-      bannerText = 'Everything is in good shape.';
-    }
-    doc.setFillColor(...bannerRgb);
-    doc.roundedRect(14, y, pw - 28, 12, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10.5);
-    doc.setTextColor(255, 255, 255);
-    doc.text(bannerText, pw / 2, y + 7.7, { align: 'center' });
-    y += 20;
-
-    // Key numbers strip (mirrors the on-screen dashboard tiles)
-    const renewalAlerts = expiredRenewals + soonRenewals;
-    const stats = [
-      { value: contractDays === null ? '-' : contractDays < 0 ? 'Expired' : contractDays, label: 'Contract Days Remaining', rgb: contractDays === null ? PDF_SLATE : contractDays < 0 ? PDF_RED : contractDays < 60 ? PDF_AMBER : PDF_ACCENT },
-      { value: assets.length, label: 'Total Assets', rgb: PDF_ACCENT },
-      { value: visitsCompleted, label: 'Visits Completed', rgb: PDF_TEAL },
-      { value: criticalCount, label: 'Critical Issues', rgb: criticalCount > 0 ? PDF_RED : PDF_GREEN },
-      { value: renewalAlerts, label: 'Renewals Needing Attention', rgb: renewalAlerts > 0 ? PDF_AMBER : PDF_GREEN },
+    // Three headline stats — restrained cards, not a wall of color
+    const headline = [
+      { value: contractDays === null ? '-' : contractDays < 0 ? 'Expired' : contractDays, label: contractDays === null ? 'No contract on file' : contractDays < 0 ? 'Contract expired' : 'Days left on contract', rgb: contractDays === null ? PDF_SLATE : contractDays < 0 ? PDF_RED : contractDays < 30 ? PDF_AMBER : PDF_ACCENT },
+      { value: itemsNeedingAttention, label: 'Assets needing attention', rgb: itemsNeedingAttention > 0 ? PDF_RED : PDF_GREEN },
+      { value: renewalAlerts, label: 'Renewals needing attention', rgb: renewalAlerts > 0 ? PDF_AMBER : PDF_GREEN },
     ];
-    const boxGap = 4;
-    const boxW   = (pw - 28 - boxGap * 4) / 5;
-    const boxH   = 28;
-    stats.forEach((s, i) => pdfStatBox(doc, 14 + i * (boxW + boxGap), y, boxW, boxH, s.value, s.label, s.rgb));
+    const boxGap = 5;
+    const boxW   = (pw - 28 - boxGap * 2) / 3;
+    const boxH   = 24;
+    headline.forEach((s, i) => pdfStatCard(doc, 14 + i * (boxW + boxGap), y, boxW, boxH, s.value, s.label, s.rgb));
     y += boxH + 14;
 
     if (activeContract) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_DARK);
-      doc.text(`Current Contract: ${activeContract.contract_number}`, 14, y);
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...PDF_MUTED);
-      doc.text(`${pdfFmtDate(activeContract.start_date)} - ${pdfFmtDate(activeContract.end_date)}`, pw - 14, y, { align: 'right' });
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...PDF_ACCENT);
+      doc.text('CONTRACT PROGRESS', 14, y);
+      y += 6;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_MUTED);
+      doc.text(`${activeContract.contract_number}  -  ${pdfFmtDate(activeContract.start_date)} - ${pdfFmtDate(activeContract.end_date)}`, 14, y);
       y += 5;
       const span = new Date(activeContract.end_date) - new Date(activeContract.start_date);
       const pct  = span > 0 ? (today - new Date(activeContract.start_date)) / span : 1;
-      pdfProgressBar(doc, 14, y, pw - 28, 4, pct, contractDays < 0 ? PDF_RED : contractDays < 60 ? PDF_AMBER : PDF_GREEN);
-      y += 12;
+      pdfProgressBar(doc, 14, y, pw - 28, 4, pct, contractDays < 0 ? PDF_RED : contractDays < 30 ? PDF_AMBER : PDF_GREEN);
+      y += 14;
     }
 
-    if (actionItems.length) {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_DARK);
-      doc.text('Top thing to address:', 14, y);
-      doc.setFont('helvetica', 'normal'); doc.setTextColor(...PDF_MUTED);
-      doc.text(`${actionItems[0].label} (${actionItems[0].count} device${actionItems[0].count === 1 ? '' : 's'}) - see Action Items on page 4`, 60, y);
-    }
+    // Small reference caption — the informational totals that used to be big tiles
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...PDF_MUTED);
+    doc.text(`${assets.length} asset${assets.length === 1 ? '' : 's'} under contract   -   ${visitsCompleted} visit${visitsCompleted === 1 ? '' : 's'} completed   -   full detail on page 3`, 14, y);
 
-    // ── Page 2: Contract & Renewals ──────────────────────────
+    // ── Page 2: Priorities ────────────────────────────────────
     doc.addPage();
-    y = pageTop('Contract & Renewals');
+    y = pageTop('Priorities', 'Everything worth acting on, most urgent first.');
 
-    if (contracts.length) {
-      contracts.forEach(c => {
-        y = pdfCheckBreak(doc, y, 32);
-        doc.setFillColor(247, 248, 250);
-        doc.rect(14, y, pw - 28, 26, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_DARK);
-        doc.text(c.contract_number, 18, y + 8);
-        const statusRgb = c.status === 'active' ? PDF_GREEN : c.status === 'expired' ? PDF_RED : PDF_SLATE;
-        pdfBadge(doc, c.status.toUpperCase(), pw - 14 - 26, y + 4, statusRgb);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...PDF_MUTED);
-        doc.text(c.contract_type || '-', 18, y + 14);
-        const cDays = Math.round((new Date(c.end_date) - today) / 86400000);
-        doc.text(`${pdfFmtDate(c.start_date)} - ${pdfFmtDate(c.end_date)}`, 18, y + 20);
-        doc.setFont('helvetica', 'bold');
-        doc.setTextColor(...(cDays < 0 ? PDF_RED : cDays < 60 ? PDF_AMBER : PDF_GREEN));
-        doc.text(cDays < 0 ? 'Expired' : `${cDays} days remaining`, pw - 18, y + 20, { align: 'right' });
-        y += 32;
-      });
+    if (priorityItems.length) {
+      priorityItems.forEach(item => { y = pdfPriorityCard(doc, y, pw, item); });
     } else {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
-      doc.text('No contracts assigned.', 14, y);
-      y += 10;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(...PDF_GREEN);
+      doc.text('Nothing needs your attention right now - everything is on track.', 14, y);
     }
 
-    y += 4;
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_ACCENT);
-    doc.text('Software & License Renewals', 14, y);
-    y += 8;
-
-    if (subscriptions.length) {
-      y = pdfTableHeader(doc, y, pw, [['SOFTWARE', 18], ['VENDOR', 90], ['EXPIRY', 135], ['STATUS', pw - 18, { align: 'right' }]]);
-      subscriptions.forEach((s, i) => {
-        y = pdfCheckBreak(doc, y, 9);
-        if (i % 2 === 0) { doc.setFillColor(248, 249, 250); doc.rect(14, y - 4.5, pw - 28, 8, 'F'); }
-        const days  = Math.round((new Date(s.end_date) - today) / 86400000);
-        const rgb   = days < 0 ? PDF_RED : days < 60 ? PDF_AMBER : PDF_GREEN;
-        const label = days < 0 ? 'Expired' : days < 60 ? `${days}d left` : 'Active';
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...PDF_DARK);
-        doc.text(s.software_name, 18, y);
-        doc.setFont('helvetica', 'normal'); doc.setTextColor(...PDF_MUTED);
-        doc.text(s.vendor || '-', 90, y);
-        doc.text(pdfFmtDate(s.end_date), 135, y);
-        doc.setFont('helvetica', 'bold'); doc.setTextColor(...rgb);
-        doc.text(label, pw - 18, y, { align: 'right' });
-        y += 8;
-      });
-    } else {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
-      doc.text('No software renewals on file.', 14, y);
-    }
-
-    // ── Page 3: Asset Health Overview ────────────────────────
+    // ── Page 3: Assets & Visit History (reference) ────────────
     doc.addPage();
-    y = pageTop('Asset Health Overview');
+    y = pageTop('Assets & Visit History', 'Reference detail - asset health breakdown and recent visits.');
 
     const FIXED_ORDER = ['Critical', 'Warning', 'Pass', 'No Active Status'];
     const HEALTH_RGB  = { 'Critical': PDF_RED, 'Warning': PDF_AMBER, 'Pass': PDF_GREEN, 'No Active Status': PDF_SLATE };
     const totalAssets = assets.length || 1;
-    const hGap = 5;
-    const hW   = (pw - 28 - hGap * 3) / 4;
-    const hH   = 30;
-    FIXED_ORDER.forEach((label, i) => {
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_ACCENT);
+    doc.text('Asset Health', 14, y);
+    y += 7;
+    FIXED_ORDER.forEach(label => {
       const count = healthCounts[label]?.count || 0;
-      const pct   = Math.round(count / totalAssets * 100);
-      pdfStatBox(doc, 14 + i * (hW + hGap), y, hW, hH, count, `${label} (${pct}%)`, HEALTH_RGB[label]);
+      const pct   = count / totalAssets;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_DARK);
+      doc.text(`${label} (${count})`, 14, y);
+      pdfProgressBar(doc, 70, y - 3, pw - 84 - 20, 3.2, pct, HEALTH_RGB[label]);
+      doc.setFont('helvetica', 'bold'); doc.setTextColor(...HEALTH_RGB[label]);
+      doc.text(`${Math.round(pct * 100)}%`, pw - 14, y, { align: 'right' });
+      y += 8;
     });
-    y += hH + 14;
+    y += 6;
 
     const byCategory = {};
-    assets.forEach(a => {
-      const cat = a.category || 'Other';
-      byCategory[cat] = (byCategory[cat] || 0) + 1;
-    });
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_ACCENT);
-    doc.text('Assets by Category', 14, y);
-    y += 8;
+    assets.forEach(a => { const cat = a.category || 'Other'; byCategory[cat] = (byCategory[cat] || 0) + 1; });
     if (Object.keys(byCategory).length) {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_ACCENT);
+      doc.text('Assets by Category', 14, y);
+      y += 8;
       y = pdfTableHeader(doc, y, pw, [['CATEGORY', 18], ['COUNT', pw - 18, { align: 'right' }]]);
       Object.entries(byCategory).forEach(([cat, count], i) => {
         y = pdfCheckBreak(doc, y, 9);
@@ -595,39 +678,12 @@ async function downloadDashboardPDF(btn) {
         doc.text(String(count), pw - 18, y, { align: 'right' });
         y += 8;
       });
-    } else {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
-      doc.text('No assets registered yet.', 14, y);
+      y += 8;
     }
 
-    // ── Page 4: Action Items ─────────────────────────────────
-    doc.addPage();
-    y = pageTop('Action Items');
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_MUTED);
-    doc.text('What our engineers recommend addressing, ranked by how many devices are affected.', 14, y);
-    y += 10;
-
-    if (actionItems.length) {
-      actionItems.forEach((item, i) => {
-        y = pdfCheckBreak(doc, y, 14);
-        if (i % 2 === 0) { doc.setFillColor(248, 249, 250); doc.rect(14, y - 5, pw - 28, 12, 'F'); }
-        doc.setFillColor(...PDF_AMBER);
-        doc.circle(19, y - 0.5, 1.4, 'F');
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5); doc.setTextColor(...PDF_DARK);
-        doc.text(item.label, 24, y);
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...PDF_MUTED);
-        doc.text(`${item.count} device${item.count === 1 ? '' : 's'} affected`, pw - 18, y, { align: 'right' });
-        y += 12;
-      });
-    } else {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...PDF_GREEN);
-      doc.text('No open issues found. Great job keeping things maintained.', 14, y);
-    }
-
-    // ── Page 5: Visit History ─────────────────────────────────
-    doc.addPage();
-    y = pageTop('Visit History');
-
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_ACCENT);
+    doc.text('Visit History', 14, y);
+    y += 8;
     if (recentVisits.length) {
       y = pdfTableHeader(doc, y, pw, [['VISIT #', 18], ['DATE', 70], ['ENGINEER', 115], ['ASSETS CHECKED', pw - 18, { align: 'right' }]]);
       recentVisits.forEach((v, i) => {

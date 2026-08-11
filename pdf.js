@@ -6,9 +6,10 @@ const PDF_MUTED  = [120, 130, 145];
 const PDF_LINE   = [220, 222, 226];
 const PDF_GREEN  = [39, 174, 96];
 const PDF_AMBER  = [212, 160, 23];
-const PDF_AMBER_BG   = [253, 230, 138];
+const PDF_AMBER_BG   = [252, 217, 160];
 const PDF_AMBER_TEXT = [146, 102, 15];
 const PDF_RED    = [192, 57, 43];
+const PDF_FAIL_BRIGHT = [229, 62, 62];
 const PDF_BG     = [250, 250, 249];
 const PDF_PURPLE = [91, 33, 182];
 const PDF_TEAL   = [14, 165, 160];
@@ -73,7 +74,7 @@ function pdfResultBadge(doc, result, x, y, softOk) {
     return;
   }
 
-  const rgb = result === 'pass' ? PDF_GREEN : result === 'fail' ? PDF_RED : PDF_AMBER;
+  const rgb = result === 'pass' ? PDF_GREEN : result === 'fail' ? (softOk ? PDF_FAIL_BRIGHT : PDF_RED) : PDF_AMBER;
   doc.setFillColor(...rgb);
   doc.rect(x, y, w, 6, 'F');
   doc.setFont('helvetica', 'bold');

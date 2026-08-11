@@ -710,13 +710,17 @@ async function openAssetDetail(assetId) {
     : `<span style="padding:5px 14px;border-radius:20px;background:#F3F4F6;font-size:13px;color:#8A8377;">No Active Status</span>`;
 
   // ── Visit checklist results ──
+  // Use this visit's own saved section names — older reports may have been
+  // filed under a since-removed per-category checklist, so assuming today's
+  // CHECKLIST here would silently show every row as blank.
   let checklistHtml = '';
   if (vra) {
     const visit = vra.visit_reports;
+    const sections = checks.length ? [...new Set(checks.map(c => c.section))] : CHECKLIST;
     checklistHtml = `
       <div style="margin-top:20px;">
         <div style="font-size:13px;font-weight:700;color:var(--ink);margin-bottom:12px;">Visit Checklist</div>
-        ${CHECKLIST.map(s => {
+        ${sections.map(s => {
           const match = checks.find(c => c.section === s);
           const result = match?.result || null;
           const sectionTags = tags.filter(t => t.section === s);

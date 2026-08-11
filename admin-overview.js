@@ -188,11 +188,10 @@ async function loadAdminOverview() {
     ? expSubs.map(s => `<tr>
         <td style="font-weight:600;">${s.software_name}</td>
         <td>${s.profiles?.name || '—'}</td>
-        <td style="color:#8A8377;">${s.vendor || '—'}</td>
         <td>${fmtDate(s.end_date)}</td>
         <td style="font-weight:600;color:${s.daysLeft <= 30 ? 'var(--rust)' : 'var(--amber)'};">${s.daysLeft}d</td>
       </tr>`).join('')
-    : `<tr><td colspan="5" class="empty-state">No renewals expiring within 90 days.</td></tr>`;
+    : `<tr><td colspan="4" class="empty-state">No renewals expiring within 90 days.</td></tr>`;
 }
 
 // ── Customer view ────────────────────────────────────────

@@ -735,21 +735,44 @@ async function downloadDashboardPDF(btn) {
 
     // ── Page 4: Asset-Based Report — per-device detail, issues only ──
     if (assets.length) {
+      const page4Title = 'Asset-Based Report';
+      const page4Sub = 'Per-device checklist detail - sections that need attention.';
       doc.addPage();
-      y = pageTop('Asset-Based Report', 'Per-device checklist detail - sections that need attention.');
+      y = pageTop(page4Title, page4Sub);
+      let justStartedPage = true;
 
-      assets.forEach((asset, idx) => {
+      assets.forEach(asset => {
         const statusNames = assetStatusMap[asset.id] || [];
         const status = statusNames.includes('Critical') ? 'Critical'
           : statusNames.includes('Warning') ? 'Warning'
           : statusNames.length ? statusNames[0] : 'No Active Status';
         const statusRgb = status === 'Critical' ? PDF_RED : status === 'Warning' ? PDF_AMBER : status === 'Pass' ? PDF_GREEN : PDF_SLATE;
 
-        y = pdfCheckBreak(doc, y, 20);
-        if (idx > 0) {
+        const vraId = latestVraByAsset[asset.id];
+        const checks = vraId ? (checksByVra[vraId] || []) : [];
+        const tags = vraId ? (tagsByVra[vraId] || []) : [];
+        const flagged = checks.filter(c => c.result === 'ok' || c.result === 'fail');
+
+        // Estimate this asset's full block height so it can start fresh on
+        // the next page instead of being split mid-way through its sections.
+        const headerH = 14.5;
+        const bodyH = (!vraId || !flagged.length)
+          ? 10
+          : flagged.reduce((sum, chk) => sum + 6 + tags.filter(t => t.section === chk.section).length * 4.6 + 3 + 2, 0);
+        const totalH = headerH + bodyH + 4;
+
+        const pageBottom = doc.internal.pageSize.getHeight() - 18;
+        if (!justStartedPage && y + totalH > pageBottom) {
+          doc.addPage();
+          y = pageTop(page4Title, page4Sub);
+          justStartedPage = true;
+        }
+
+        if (!justStartedPage) {
           doc.setDrawColor(...PDF_LINE); doc.setLineWidth(0.3);
           doc.line(14, y - 6, pw - 14, y - 6);
         }
+        justStartedPage = false;
 
         doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...PDF_DARK);
         doc.text(asset.employee_name || asset.name, 14, y);
@@ -759,11 +782,6 @@ async function downloadDashboardPDF(btn) {
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_MUTED);
         doc.text(`${asset.category || '-'}${asset.name && asset.name !== asset.employee_name ? '  -  ' + asset.name : ''}`, 14, y);
         y += 9;
-
-        const vraId = latestVraByAsset[asset.id];
-        const checks = vraId ? (checksByVra[vraId] || []) : [];
-        const tags = vraId ? (tagsByVra[vraId] || []) : [];
-        const flagged = checks.filter(c => c.result === 'ok' || c.result === 'fail');
 
         if (!vraId) {
           doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_MUTED);
@@ -783,6 +801,8 @@ async function downloadDashboardPDF(btn) {
           const rgb = chk.result === 'fail' ? PDF_RED : PDF_AMBER;
           const tagLines = sectionTags.map(t => `-  ${t.label}`);
           const blockH = 6 + tagLines.length * 4.6 + 3;
+          // Safety net only — the whole-asset check above should already have
+          // kept this on one page; this just guards a pathologically large asset.
           y = pdfCheckBreak(doc, y, blockH + 2);
 
           doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_DARK);

@@ -6,6 +6,8 @@ const PDF_MUTED  = [120, 130, 145];
 const PDF_LINE   = [220, 222, 226];
 const PDF_GREEN  = [39, 174, 96];
 const PDF_AMBER  = [212, 160, 23];
+const PDF_AMBER_BG   = [250, 241, 224];
+const PDF_AMBER_TEXT = [146, 102, 15];
 const PDF_RED    = [192, 57, 43];
 const PDF_BG     = [250, 250, 249];
 const PDF_PURPLE = [91, 33, 182];
@@ -54,11 +56,24 @@ function pdfBrandBar(doc, rightText) {
   doc.text(rightText || '', pw - 14, 9, { align: 'right' });
 }
 
-function pdfResultBadge(doc, result, x, y) {
+function pdfResultBadge(doc, result, x, y, softOk) {
   if (!result) return;
-  const rgb = result === 'pass' ? PDF_GREEN : result === 'fail' ? PDF_RED : PDF_AMBER;
   const label = result.toUpperCase();
   const w = 22;
+
+  // OK is the least severe result, so it gets a lighter, softer treatment —
+  // opt-in via softOk so the original solid style elsewhere is untouched.
+  if (softOk && result === 'ok') {
+    doc.setFillColor(...PDF_AMBER_BG);
+    doc.roundedRect(x, y, w, 6, 1.2, 1.2, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(6.5);
+    doc.setTextColor(...PDF_AMBER_TEXT);
+    doc.text(label, x + w / 2, y + 4.3, { align: 'center' });
+    return;
+  }
+
+  const rgb = result === 'pass' ? PDF_GREEN : result === 'fail' ? PDF_RED : PDF_AMBER;
   doc.setFillColor(...rgb);
   doc.rect(x, y, w, 6, 'F');
   doc.setFont('helvetica', 'bold');
@@ -791,7 +806,7 @@ async function downloadDashboardPDF(btn) {
 
           doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_DARK);
           doc.text(chk.section, 18, y);
-          pdfResultBadge(doc, chk.result, pw - 18 - 22, y - 4);
+          pdfResultBadge(doc, chk.result, pw - 18 - 22, y - 4, true);
           y += 5;
 
           doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3); doc.setTextColor(...PDF_MUTED);

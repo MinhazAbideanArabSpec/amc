@@ -143,16 +143,34 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000);
 
-// ── Boot: restore session after ALL scripts have loaded ──
-window.addEventListener('load', async () => {
+// ── Boot: restore session as soon as the DOM (and our own scripts) are ready —
+// NOT window's 'load' event, which also waits on external CDN scripts/fonts and
+// made a logged-in user visibly sit on the login screen for a moment on every
+// reload before flipping to the dashboard.
+function hideBootScreen() {
+  const boot = document.getElementById('boot-screen');
+  if (boot) boot.style.display = 'none';
+}
+
+async function bootApp() {
   loadSiteLogo(); // populate .site-logo-img everywhere, including the login screen
   await loadSessionTimeoutSetting();
   const { data: { session } } = await sb.auth.getSession();
-  if (!session) return;
+
+  if (!session) {
+    hideBootScreen();
+    document.getElementById('login-screen').style.display = 'flex';
+    return;
+  }
   if (isSessionExpired()) {
     localStorage.removeItem('login_at');
     await sb.auth.signOut({ scope: 'local' });
+    hideBootScreen();
+    document.getElementById('login-screen').style.display = 'flex';
     return;
   }
   await afterLogin();
-});
+  hideBootScreen();
+}
+
+document.addEventListener('DOMContentLoaded', bootApp);

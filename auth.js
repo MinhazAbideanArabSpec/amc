@@ -152,6 +152,7 @@ async function logout() {
   document.getElementById('admin-view').style.display = 'none';
   document.getElementById('customer-view').style.display = 'none';
   document.getElementById('login-screen').style.display = 'flex';
+  history.pushState(null, '', location.pathname); // drop the stale tab hash
 }
 
 async function afterLogin() {
@@ -161,11 +162,15 @@ async function afterLogin() {
   if (error || !profile) {
     alert('Your account has no profile set up. Contact admin.');
     await sb.auth.signOut({ scope: 'local' });
+    document.getElementById('app-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
     return;
   }
   if (!profile.is_active) {
     alert('Your account has been deactivated. Contact admin.');
     await sb.auth.signOut({ scope: 'local' });
+    document.getElementById('app-screen').style.display = 'none';
+    document.getElementById('login-screen').style.display = 'flex';
     return;
   }
 
@@ -180,11 +185,13 @@ async function afterLogin() {
   if (profile.role === 'admin') {
     document.getElementById('admin-view').style.display = 'block';
     document.getElementById('customer-view').style.display = 'none';
-    switchAdminTab('overview');
+    const startTab = ADMIN_TABS.includes(currentHashTab()) ? currentHashTab() : 'overview';
+    switchAdminTab(startTab);
   } else {
     document.getElementById('customer-view').style.display = 'block';
     document.getElementById('admin-view').style.display = 'none';
-    switchCustomerTab('overview');
+    const startTab = CUSTOMER_TABS.includes(currentHashTab()) ? currentHashTab() : 'overview';
+    switchCustomerTab(startTab);
     renderCustomerProfile(profile);
     document.getElementById('dash-hero-name').textContent = profile.name || myProfile?.name;
     initLanguage(profile.language || 'en');
@@ -215,13 +222,23 @@ async function afterLogin() {
   }
 }
 
+// ── Tab <-> URL hash, so every tab has its own link and reload/back/forward
+// land back on the tab you were viewing instead of always resetting to Overview ──
+const ADMIN_TABS    = ['overview','clients','users','contracts','assets','reports','status','subs','tags','settings','smtp'];
+const CUSTOMER_TABS = ['overview','reports','assets','dc','renewals','contract'];
+
+function currentHashTab() {
+  return location.hash.replace('#', '');
+}
+
 // ── Customer: switch between Overview / Profile / Contracts / Assets tabs ──
 function switchCustomerTab(tab) {
-  ['overview','reports','assets','dc','renewals','contract'].forEach(t => {
+  CUSTOMER_TABS.forEach(t => {
     document.getElementById(`cust-tab-${t}`)?.classList.toggle('active', t === tab);
     const panel = document.getElementById(`cust-panel-${t}`);
     if (panel) panel.style.display = t === tab ? 'block' : 'none';
   });
+  if (currentHashTab() !== tab) history.pushState(null, '', '#' + tab);
   if (tab === 'reports')  loadCustomerReports();
   if (tab === 'renewals') loadCustomerRenewalsTab(getCustomerId());
   if (tab === 'contract') { loadCustomerSubscriptions(getCustomerId()); }
@@ -231,11 +248,12 @@ function switchCustomerTab(tab) {
 
 // ── Admin: switch tabs ──
 function switchAdminTab(tab) {
-  ['overview','clients','users','contracts','assets','reports','status','subs','tags','settings','smtp'].forEach(t => {
+  ADMIN_TABS.forEach(t => {
     document.getElementById(`nav-tab-${t}`)?.classList.toggle('active', t === tab);
     const panel = document.getElementById(`admin-panel-${t}`);
     if (panel) panel.style.display = t === tab ? 'block' : 'none';
   });
+  if (currentHashTab() !== tab) history.pushState(null, '', '#' + tab);
   if (tab === 'overview')  loadAdminOverview();
   if (tab === 'clients')   loadClientsList();
   if (tab === 'users')     loadUsersList();
@@ -250,4 +268,12 @@ function switchAdminTab(tab) {
     if (input) input.value = Math.round((SESSION_MAX_AGE_MS / (60 * 60 * 1000)) * 100) / 100;
   }
 }
+
+// Browser Back/Forward (or a manually-edited hash) between tabs
+window.addEventListener('hashchange', () => {
+  if (!myProfile) return; // boot hasn't resolved yet — it reads the hash itself
+  const tab = currentHashTab();
+  if (myProfile.role === 'admin' && ADMIN_TABS.includes(tab)) switchAdminTab(tab);
+  else if (myProfile.role !== 'admin' && CUSTOMER_TABS.includes(tab)) switchCustomerTab(tab);
+});
 

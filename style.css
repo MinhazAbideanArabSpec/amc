@@ -27,6 +27,19 @@
 
     h1, h2, h3 { font-family: 'Source Serif 4', serif; color: var(--ink); font-weight: 600; }
 
+    /* ── Boot: shown while we check whether a session already exists,
+       so a logged-in user never sees the login screen flash first ── */
+    #boot-screen {
+      min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      background: var(--paper);
+    }
+    #boot-screen .boot-spinner {
+      width: 28px; height: 28px; border-radius: 50%;
+      border: 3px solid var(--line); border-top-color: var(--accent);
+      animation: boot-spin 0.7s linear infinite;
+    }
+    @keyframes boot-spin { to { transform: rotate(360deg); } }
+
     /* ── Login ── */
     #login-screen {
       min-height: 100vh; display: flex; align-items: center; justify-content: center;

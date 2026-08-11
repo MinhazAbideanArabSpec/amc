@@ -776,8 +776,12 @@ async function downloadDashboardPDF(btn) {
 
         doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...PDF_DARK);
         doc.text(asset.employee_name || asset.name, 14, y);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...statusRgb);
-        doc.text(status, pw - 14, y, { align: 'right' });
+        {
+          const statusLabel = status.toUpperCase();
+          doc.setFont('helvetica', 'bold'); doc.setFontSize(7);
+          const statusW = doc.getStringUnitWidth(statusLabel) * (7 / doc.internal.scaleFactor) + 8;
+          pdfBadge(doc, statusLabel, pw - 14 - statusW, y - 4, statusRgb);
+        }
         y += 5.5;
         doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_MUTED);
         doc.text(`${asset.category || '-'}${asset.name && asset.name !== asset.employee_name ? '  -  ' + asset.name : ''}`, 14, y);
@@ -807,8 +811,7 @@ async function downloadDashboardPDF(btn) {
 
           doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...PDF_DARK);
           doc.text(chk.section, 18, y);
-          doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...rgb);
-          doc.text(chk.result.toUpperCase(), pw - 18, y, { align: 'right' });
+          pdfResultBadge(doc, chk.result, pw - 18 - 22, y - 4);
           y += 5;
 
           doc.setFont('helvetica', 'normal'); doc.setFontSize(8.3); doc.setTextColor(...PDF_MUTED);

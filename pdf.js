@@ -77,7 +77,7 @@ function pdfFooters(doc, logoDataUrl) {
 
   let logo = null;
   if (logoDataUrl) {
-    try { logo = pdfFitImage(doc, logoDataUrl, 16, 7); } catch { /* skip if unusable */ }
+    try { logo = pdfFitImage(doc, logoDataUrl, 26, 12); } catch { /* skip if unusable */ }
   }
 
   for (let i = 1; i <= n; i++) {
@@ -88,7 +88,7 @@ function pdfFooters(doc, logoDataUrl) {
     doc.text('ArabSpec IT - Confidential', 14, ph - 7);
     doc.text(`Page ${i} of ${n}`, pw - 14, ph - 7, { align: 'right' });
     if (logo) {
-      doc.addImage(logoDataUrl, logo.format, pw - 14 - logo.w, ph - 18, logo.w, logo.h);
+      doc.addImage(logoDataUrl, logo.format, pw - 14 - logo.w, ph - 9 - logo.h, logo.w, logo.h);
     }
   }
 }
@@ -645,7 +645,7 @@ async function downloadDashboardPDF(btn) {
 
     // Shared, lighter-weight header for pages 2+
     function pageTop(title, subtitle) {
-      pdfBrandBar(doc, 'AMC Health Report');
+      pdfBrandBar(doc, 'Arab Spec Dashboard Report');
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(15);
       doc.setTextColor(...PDF_DARK);
@@ -661,12 +661,12 @@ async function downloadDashboardPDF(btn) {
     }
 
     // ── Page 1: Cover ──────────────────────────────────────────
-    pdfBrandBar(doc, 'AMC Health Report');
+    pdfBrandBar(doc, 'Arab Spec Dashboard Report');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...PDF_ACCENT);
-    doc.text('AMC HEALTH REPORT', pw / 2, 64, { align: 'center' });
+    doc.text('ARAB SPEC DASHBOARD REPORT', pw / 2, 64, { align: 'center' });
 
     // Customer logo, bigger and centered directly above the customer name.
     if (customerLogoDataUrl) {

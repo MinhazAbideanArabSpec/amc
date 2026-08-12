@@ -672,7 +672,7 @@ async function downloadDashboardPDF(btn) {
     // above the customer name. (The ArabSpec logo also appears again, small,
     // in the bottom-right footer of pages 2 onward.)
     const logoBandTop = 70, logoBandH = 32, logoGap = 10;
-    const customerBoxW = 55, arabspecBoxW = 38, arabspecBoxH = 22;
+    const customerBoxW = 55, arabspecBoxW = 26, arabspecBoxH = 26;
     const logoPairW = customerBoxW + arabspecBoxW + logoGap;
     const logoPairX = (pw - logoPairW) / 2;
     [

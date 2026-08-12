@@ -616,8 +616,14 @@ async function downloadDashboardPDF(btn) {
       sentences.push('All monitored assets are currently in good health.');
     }
     if (subscriptions.length) {
-      if (renewalAlerts > 0) {
-        sentences.push(`${expiredRenewals.length} software renewal${expiredRenewals.length === 1 ? '' : 's'} ${expiredRenewals.length === 1 ? 'has' : 'have'} expired and ${soonRenewals.length} more ${soonRenewals.length === 1 ? 'is' : 'are'} due within 60 days.`);
+      if (expiredRenewals.length) {
+        const expiredNames = expiredRenewals.slice(0, 3).map(s => s.software_name).join(', ');
+        const expiredMore  = expiredRenewals.length > 3 ? `, and ${expiredRenewals.length - 3} more` : '';
+        sentences.push(`${expiredRenewals.length} software renewal${expiredRenewals.length === 1 ? '' : 's'} ${expiredRenewals.length === 1 ? 'has' : 'have'} expired (${expiredNames}${expiredMore})${soonRenewals.length ? ` and ${soonRenewals.length} more ${soonRenewals.length === 1 ? 'is' : 'are'} due within 60 days` : ''}.`);
+      } else if (soonRenewals.length) {
+        const soonNames = soonRenewals.slice(0, 3).map(s => s.software_name).join(', ');
+        const soonMore   = soonRenewals.length > 3 ? `, and ${soonRenewals.length - 3} more` : '';
+        sentences.push(`${soonRenewals.length} software renewal${soonRenewals.length === 1 ? '' : 's'} ${soonRenewals.length === 1 ? 'is' : 'are'} due within 60 days (${soonNames}${soonMore}).`);
       } else {
         sentences.push('All software renewals are up to date.');
       }

@@ -934,6 +934,111 @@ async function loadCustomerRenewalsTab(customerId) {
   el.innerHTML = html;
 }
 
+// ── Website (publish-to-GitHub) ──────────────────────────
+async function loadCustomerWebsiteTab(customerId) {
+  const el = document.getElementById('customer-website-body');
+  if (!el) return;
+  el.innerHTML = '<div class="empty-state">Loading…</div>';
+
+  const { data: site } = await sb.from('customer_sites').select('repo').eq('customer_id', customerId).single();
+  if (!site) {
+    el.innerHTML = '<div class="empty-state">Your website isn\'t connected yet — contact ArabSpec.</div>';
+    return;
+  }
+
+  el.innerHTML = `
+    <div style="font-size:13px;color:#475569;margin-bottom:16px;">
+      Download a backup of your current files before making changes — if something goes wrong after publishing, you can always re-upload it.
+    </div>
+    <button class="secondary" onclick="downloadWebsiteBackup()" id="website-backup-btn">Download Backup</button>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <label>Publish updated files</label>
+      <input type="file" id="website-upload-input" accept=".zip"/>
+      <div style="font-size:12px;color:#94A3B8;margin:6px 0 12px;">Upload a .zip of your site's files. This replaces the matching files on your live site.</div>
+      <button onclick="publishWebsiteChanges()" id="website-publish-btn">Publish Changes</button>
+      <div id="website-publish-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
+    </div>
+  `;
+}
+
+async function downloadWebsiteBackup() {
+  const btn = document.getElementById('website-backup-btn');
+  btn.disabled = true;
+  btn.textContent = 'Preparing…';
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/github-site-backup`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) {
+      const result = await res.json().catch(() => ({}));
+      alert(result.error || 'Could not prepare the backup. Please try again.');
+      return;
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (res.headers.get('Content-Disposition') || '').match(/filename="(.+)"/)?.[1] || 'website-backup.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download Backup';
+  }
+}
+
+async function publishWebsiteChanges() {
+  const fileInput = document.getElementById('website-upload-input');
+  const statusEl  = document.getElementById('website-publish-status');
+  const btn       = document.getElementById('website-publish-btn');
+  const file = fileInput.files[0];
+
+  statusEl.style.display = 'none';
+  if (!file) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Choose a .zip file first.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Publishing…';
+
+  const { data: { session } } = await sb.auth.getSession();
+  const form = new FormData();
+  form.append('file', file);
+
+  let result;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/github-site-publish`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      body: form,
+    });
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Something went wrong publishing.');
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Publish Changes';
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = err.message || 'Something went wrong publishing — try again or contact ArabSpec.';
+    return;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Publish Changes';
+  fileInput.value = '';
+  statusEl.style.display = 'block';
+  statusEl.style.color = 'var(--sage)';
+  statusEl.textContent = 'Saved. Your changes have been published.';
+}
+
 async function loadNotifications(customerId) {
   const card    = document.getElementById('istat-notif-card');
   const icon    = document.getElementById('istat-notif-icon');

@@ -225,7 +225,7 @@ async function afterLogin() {
 // ── Tab <-> URL hash, so every tab has its own link and reload/back/forward
 // land back on the tab you were viewing instead of always resetting to Overview ──
 const ADMIN_TABS    = ['overview','clients','users','contracts','assets','reports','status','subs','tags','settings','smtp'];
-const CUSTOMER_TABS = ['overview','reports','assets','dc','renewals','contract'];
+const CUSTOMER_TABS = ['overview','reports','assets','dc','renewals','contract','website'];
 
 function currentHashTab() {
   return location.hash.replace('#', '');
@@ -244,6 +244,7 @@ function switchCustomerTab(tab) {
   if (tab === 'contract') { loadCustomerSubscriptions(getCustomerId()); }
   if (tab === 'assets')   loadGroupAssets('end_user', getCustomerId());
   if (tab === 'dc')       loadGroupAssets('data_center', getCustomerId());
+  if (tab === 'website')  loadCustomerWebsiteTab(getCustomerId());
 }
 
 // ── Admin: switch tabs ──

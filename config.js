@@ -135,6 +135,38 @@ async function sendTestSmtpEmail() {
   }
 }
 
+async function saveGithubToken() {
+  const token = document.getElementById('github-token-input').value.trim();
+  const statusEl = document.getElementById('github-token-status');
+  const btn = document.getElementById('github-token-save-btn');
+
+  if (!token) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Enter a token.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  statusEl.style.display = 'none';
+
+  const { data, error } = await sb.functions.invoke('save-github-token', { body: { token } });
+
+  btn.disabled = false;
+  btn.textContent = 'Save Token';
+
+  statusEl.style.display = 'block';
+  if (error || data?.error) {
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Failed to save: ' + (data?.error || error.message);
+  } else {
+    statusEl.style.color = 'var(--sage)';
+    statusEl.textContent = 'GitHub token saved.';
+    document.getElementById('github-token-input').value = '';
+  }
+}
+
 // Catches a tab left open across the timeout mark
 setInterval(() => {
   if (myProfile && isSessionExpired()) {

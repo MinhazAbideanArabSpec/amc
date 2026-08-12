@@ -45,6 +45,7 @@ function renderClientsTable() {
           <button class="secondary" onclick="openEditModal('${u.id}')">Edit</button>
           <button class="secondary" style="background:var(--accent);color:#fff;border-color:var(--accent);" onclick="viewAsCustomer('${u.id}')">Login as Client</button>
           <button class="secondary" onclick="openStaffModal('${u.id}', '${u.name.replace(/'/g, "\'")}')">Staff ${u._staffCount ? `(${u._staffCount})` : ''}</button>
+          <button class="secondary" onclick="openWebsiteModal('${u.id}', '${u.name.replace(/'/g, "\'")}')">Website</button>
           <button class="secondary" onclick="toggleActive('${u.id}', ${u.is_active})">${u.is_active ? 'Deactivate' : 'Activate'}</button>
           <button class="danger" onclick="deleteUser('${u.id}', '${u.name.replace(/'/g, "\'")}')">Delete</button>
         </div>
@@ -530,6 +531,53 @@ async function deleteStaff(staffId) {
   await sb.from('profiles').delete().eq('id', staffId);
   await loadStaffList();
   loadUsersList();
+}
+
+
+// ── Website (GitHub repo mapping) ────────────────────────
+var _websiteCustomerId = null;
+
+async function openWebsiteModal(customerId, customerName) {
+  _websiteCustomerId = customerId;
+  document.getElementById('website-modal-title').textContent = 'Website — ' + customerName;
+  document.getElementById('website-modal-error').style.display = 'none';
+  document.getElementById('website-repo-input').value = '';
+  document.getElementById('website-branch-input').value = 'main';
+
+  const { data: site } = await sb.from('customer_sites').select('repo, branch').eq('customer_id', customerId).single();
+  if (site) {
+    document.getElementById('website-repo-input').value = site.repo;
+    document.getElementById('website-branch-input').value = site.branch;
+  }
+
+  document.getElementById('website-modal-overlay').classList.add('open');
+}
+
+function closeWebsiteModal() {
+  document.getElementById('website-modal-overlay').classList.remove('open');
+}
+
+async function saveWebsiteConfig() {
+  const repo = document.getElementById('website-repo-input').value.trim();
+  const branch = document.getElementById('website-branch-input').value.trim() || 'main';
+  const errEl = document.getElementById('website-modal-error');
+  const btn = document.getElementById('website-save-btn');
+  errEl.style.display = 'none';
+
+  if (!repo.includes('/')) {
+    errEl.textContent = 'Enter the repo as owner/name, e.g. arabspec/client-site.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = true; btn.textContent = 'Saving…';
+  const { error } = await sb.from('customer_sites').upsert({
+    customer_id: _websiteCustomerId, repo, branch,
+  }, { onConflict: 'customer_id' });
+  btn.disabled = false; btn.textContent = 'Save';
+
+  if (error) { errEl.textContent = 'Failed to save: ' + error.message; errEl.style.display = 'block'; return; }
+  closeWebsiteModal();
 }
 
 

@@ -18,8 +18,9 @@ Deno.serve(async (req) => {
 
   try {
     const form = await req.formData();
-    const file = form.get('file');
-    if (!(file instanceof File)) {
+    const zipFile = form.get('file');
+    const looseFiles = form.getAll('files').filter((f): f is File => f instanceof File);
+    if (!(zipFile instanceof File) && !looseFiles.length) {
       return new Response(JSON.stringify({ error: 'No file uploaded' }), { status: 400, headers: corsHeaders });
     }
     const requestedCustomerId = form.get('customerId');
@@ -29,17 +30,39 @@ Deno.serve(async (req) => {
     const { repo, branch, token } = site;
     const gh = ghHeaders(token);
 
-    const zip = await JSZip.loadAsync(await file.arrayBuffer());
     const entries: { path: string; bytes: Uint8Array }[] = [];
-    for (const path of Object.keys(zip.files)) {
-      const entry = zip.files[path];
-      if (entry.dir) continue;
-      // zip-slip guard: refuse absolute paths or '..' segments
-      if (path.startsWith('/') || path.split('/').includes('..')) continue;
-      entries.push({ path, bytes: await entry.async('uint8array') });
+
+    if (zipFile instanceof File) {
+      // Zip mode — one archive, files land at their path inside it.
+      let zip;
+      try {
+        zip = await JSZip.loadAsync(await zipFile.arrayBuffer());
+      } catch {
+        return new Response(
+          JSON.stringify({ error: "That file isn't a valid .zip archive — make sure you selected a .zip file (not a renamed file) and that the upload finished, then try again." }),
+          { status: 400, headers: corsHeaders }
+        );
+      }
+      for (const path of Object.keys(zip.files)) {
+        const entry = zip.files[path];
+        if (entry.dir) continue;
+        // zip-slip guard: refuse absolute paths or '..' segments
+        if (path.startsWith('/') || path.split('/').includes('..')) continue;
+        entries.push({ path, bytes: await entry.async('uint8array') });
+      }
+    } else {
+      // Loose-file mode — one or more individual files, committed at the
+      // repo root under their own filename (browsers never expose a
+      // directory path for a plain file input, so there's no zip-slip
+      // surface here — file.name is always a bare filename).
+      for (const f of looseFiles) {
+        if (!f.name) continue;
+        entries.push({ path: f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
+      }
     }
+
     if (!entries.length) {
-      return new Response(JSON.stringify({ error: 'The uploaded zip has no files in it' }), { status: 400, headers: corsHeaders });
+      return new Response(JSON.stringify({ error: 'No files found in the upload' }), { status: 400, headers: corsHeaders });
     }
 
     // Current tip of the branch

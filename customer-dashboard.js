@@ -954,8 +954,8 @@ async function loadCustomerWebsiteTab(customerId) {
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
       <label>Publish updated files</label>
-      <input type="file" id="website-upload-input" accept=".zip"/>
-      <div style="font-size:12px;color:#94A3B8;margin:6px 0 12px;">Upload a .zip of your site's files. This replaces the matching files on your live site.</div>
+      <input type="file" id="website-upload-input" multiple/>
+      <div style="font-size:12px;color:#94A3B8;margin:6px 0 12px;">Select one or more files (.html, .css, .js, images, …) to replace files with the same name at your site's root — or select a single .zip to replace matching files anywhere in the folder structure.</div>
       <button onclick="publishWebsiteChanges()" id="website-publish-btn">Publish Changes</button>
       <div id="website-publish-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
     </div>
@@ -996,13 +996,13 @@ async function publishWebsiteChanges() {
   const fileInput = document.getElementById('website-upload-input');
   const statusEl  = document.getElementById('website-publish-status');
   const btn       = document.getElementById('website-publish-btn');
-  const file = fileInput.files[0];
+  const files = fileInput.files;
 
   statusEl.style.display = 'none';
-  if (!file) {
+  if (!files.length) {
     statusEl.style.display = 'block';
     statusEl.style.color = 'var(--rust)';
-    statusEl.textContent = 'Choose a .zip file first.';
+    statusEl.textContent = 'Choose one or more files, or a .zip archive, first.';
     return;
   }
 
@@ -1011,7 +1011,12 @@ async function publishWebsiteChanges() {
 
   const { data: { session } } = await sb.auth.getSession();
   const form = new FormData();
-  form.append('file', file);
+  const isZip = files.length === 1 && files[0].name.toLowerCase().endsWith('.zip');
+  if (isZip) {
+    form.append('file', files[0]);
+  } else {
+    Array.from(files).forEach(f => form.append('files', f));
+  }
   form.append('customerId', getCustomerId());
 
   let result;

@@ -87,7 +87,7 @@ function pdfFooters(doc, logoDataUrl) {
     doc.setTextColor(...PDF_MUTED);
     doc.text('ArabSpec IT - Confidential', 14, ph - 7);
     doc.text(`Page ${i} of ${n}`, pw - 14, ph - 7, { align: 'right' });
-    if (logo && i > 1) {
+    if (logo) {
       doc.addImage(logoDataUrl, logo.format, pw - 14 - logo.w, ph - 13 - logo.h, logo.w, logo.h);
     }
   }
@@ -668,23 +668,15 @@ async function downloadDashboardPDF(btn) {
     doc.setTextColor(...PDF_ACCENT);
     doc.text('ARAB SPEC DASHBOARD REPORT', pw / 2, 64, { align: 'center' });
 
-    // Customer logo paired with a smaller ArabSpec logo, centered directly
-    // above the customer name. (The ArabSpec logo also appears again, small,
-    // in the bottom-right footer of pages 2 onward.)
-    const logoBandTop = 70, logoBandH = 32, logoGap = 10;
-    const customerBoxW = 55, arabspecBoxW = 26, arabspecBoxH = 26;
-    const logoPairW = customerBoxW + arabspecBoxW + logoGap;
-    const logoPairX = (pw - logoPairW) / 2;
-    [
-      { dataUrl: customerLogoDataUrl, boxX: logoPairX, boxW: customerBoxW, boxH: logoBandH },
-      { dataUrl: arabspecLogoDataUrl, boxX: logoPairX + customerBoxW + logoGap, boxW: arabspecBoxW, boxH: arabspecBoxH },
-    ].forEach(({ dataUrl, boxX, boxW, boxH }) => {
-      if (!dataUrl) return;
+    // Customer logo only, centered directly above the customer name.
+    // (The ArabSpec logo appears small in the bottom-right footer of every page.)
+    if (customerLogoDataUrl) {
       try {
-        const { w, h, format } = pdfFitImage(doc, dataUrl, boxW, boxH);
-        doc.addImage(dataUrl, format, boxX + (boxW - w) / 2, logoBandTop + (logoBandH - h) / 2, w, h);
+        const logoBandTop = 70, logoBandH = 32, logoMaxW = 55;
+        const { w, h, format } = pdfFitImage(doc, customerLogoDataUrl, logoMaxW, logoBandH);
+        doc.addImage(customerLogoDataUrl, format, (pw - w) / 2, logoBandTop + (logoBandH - h) / 2, w, h);
       } catch { /* malformed or unsupported image — skip it, don't fail the report */ }
-    });
+    }
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);

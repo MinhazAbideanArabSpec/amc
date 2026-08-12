@@ -695,14 +695,17 @@ async function downloadDashboardPDF(btn) {
     doc.setTextColor(...PDF_MUTED);
     doc.text(`Report Date: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pw / 2, 128, { align: 'center' });
 
+    const coverColGap = 20;
+    const coverBlockW = 150;
+    const coverColW   = (coverBlockW - coverColGap) / 2;
+    const coverBlockX = (pw - coverBlockW) / 2;
+    const presentedX  = coverBlockX;
+    const preparedX   = coverBlockX + coverColW + coverColGap;
+
     doc.setDrawColor(...PDF_LINE);
     doc.setLineWidth(0.4);
-    doc.line(14, 160, pw - 14, 160);
+    doc.line(coverBlockX, 160, coverBlockX + coverBlockW, 160);
 
-    const coverColGap = 16;
-    const coverColW   = (pw - 28 - coverColGap) / 2;
-    const presentedX  = 14;
-    const preparedX   = 14 + coverColW + coverColGap;
     let cy = 174;
 
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...PDF_ACCENT);

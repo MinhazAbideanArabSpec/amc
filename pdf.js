@@ -623,15 +623,41 @@ async function downloadDashboardPDF(btn) {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...PDF_ACCENT);
-    doc.text('AMC HEALTH REPORT', pw / 2, 128, { align: 'center' });
+    doc.text('AMC HEALTH REPORT', pw / 2, 108, { align: 'center' });
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);
     doc.setTextColor(...PDF_DARK);
-    doc.text(customerName, pw / 2, 143, { align: 'center' });
+    doc.text(customerName, pw / 2, 123, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10.5);
     doc.setTextColor(...PDF_MUTED);
-    doc.text(`Report Date: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pw / 2, 153, { align: 'center' });
+    doc.text(`Report Date: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pw / 2, 133, { align: 'center' });
+
+    doc.setDrawColor(...PDF_LINE);
+    doc.setLineWidth(0.4);
+    doc.line(14, 160, pw - 14, 160);
+
+    const coverColGap = 16;
+    const coverColW   = (pw - 28 - coverColGap) / 2;
+    const presentedX  = 14;
+    const preparedX   = 14 + coverColW + coverColGap;
+    let cy = 174;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...PDF_ACCENT);
+    doc.text('PRESENTED TO', presentedX, cy);
+    doc.text('PREPARED BY', preparedX, cy);
+    cy += 8;
+
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10); doc.setTextColor(...PDF_DARK);
+    doc.text(customerName, presentedX, cy);
+    doc.text('Arab Spec IT Co.', preparedX, cy);
+    cy += 6;
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...PDF_MUTED);
+    if (activeContract?.customer_address) {
+      doc.text(doc.splitTextToSize(activeContract.customer_address, coverColW), presentedX, cy);
+    }
+    doc.text(['Unitax Tower 2nd floor 5,', 'Dhahran 34232'], preparedX, cy);
 
     let y;
 

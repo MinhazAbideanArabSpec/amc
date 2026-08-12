@@ -77,7 +77,7 @@ function pdfFooters(doc, logoDataUrl) {
 
   let logo = null;
   if (logoDataUrl) {
-    try { logo = pdfFitImage(doc, logoDataUrl, 26, 12); } catch { /* skip if unusable */ }
+    try { logo = pdfFitImage(doc, logoDataUrl, 36, 18); } catch { /* skip if unusable */ }
   }
 
   for (let i = 1; i <= n; i++) {
@@ -88,7 +88,7 @@ function pdfFooters(doc, logoDataUrl) {
     doc.text('ArabSpec IT - Confidential', 14, ph - 7);
     doc.text(`Page ${i} of ${n}`, pw - 14, ph - 7, { align: 'right' });
     if (logo) {
-      doc.addImage(logoDataUrl, logo.format, pw - 14 - logo.w, ph - 9 - logo.h, logo.w, logo.h);
+      doc.addImage(logoDataUrl, logo.format, pw - 14 - logo.w, ph - 13 - logo.h, logo.w, logo.h);
     }
   }
 }

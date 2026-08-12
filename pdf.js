@@ -485,7 +485,7 @@ async function downloadVisitReportPDF(reportId, visitNum, visitDate, engineerNam
 //  DASHBOARD PDF — reads like a memo, not a data export.
 //  Page 1: Cover              — customer name and report date only
 //  Page 2: Index              — where each section starts
-//  Page 3: Summary            — verdict, plain-language narrative, headline stats
+//  Page 3: Summary            — plain-language narrative, headline stats
 //  Page 4: Renewals           — contract status and software license renewals
 //  Page 5: Assets & Visits    — reference detail for readers who want to dig in
 //  Page 6: Asset-Based Report — per-device checklist detail, OK/FAIL sections only
@@ -603,6 +603,13 @@ async function downloadDashboardPDF(btn) {
 
     // ── Plain-language narrative for the summary page ─────────
     const sentences = [];
+    if (criticalItemCount > 0) {
+      sentences.push(`This account needs immediate attention — ${criticalItemCount} item${criticalItemCount === 1 ? '' : 's'} require${criticalItemCount === 1 ? 's' : ''} action.`);
+    } else if (warningItemCount > 0) {
+      sentences.push(`This account is in good shape overall, with ${warningItemCount} item${warningItemCount === 1 ? '' : 's'} worth reviewing soon.`);
+    } else {
+      sentences.push('This account is in good health, with nothing outstanding right now.');
+    }
     if (!activeContract) {
       sentences.push('No active AMC contract is currently on file for this account.');
     } else if (contractDays < 0) {
@@ -632,18 +639,6 @@ async function downloadDashboardPDF(btn) {
       ? `Your most recent visit was ${pdfFmtDate(recentVisits[0].visit_date)} (Visit #${recentVisits[0].visit_number}).`
       : 'No visit reports are on file yet.');
     const narrative = sentences.join(' ');
-
-    let verdictRgb, verdictLabel, verdictReason;
-    if (criticalItemCount > 0) {
-      verdictRgb = PDF_RED; verdictLabel = 'Action needed';
-      verdictReason = `${criticalItemCount} item${criticalItemCount === 1 ? '' : 's'} need${criticalItemCount === 1 ? 's' : ''} immediate attention`;
-    } else if (warningItemCount > 0) {
-      verdictRgb = PDF_AMBER; verdictLabel = 'Worth a look';
-      verdictReason = `${warningItemCount} item${warningItemCount === 1 ? '' : 's'} worth reviewing soon`;
-    } else {
-      verdictRgb = PDF_GREEN; verdictLabel = 'All good';
-      verdictReason = 'No outstanding issues found';
-    }
 
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'mm', format: 'a4' });
@@ -745,18 +740,6 @@ async function downloadDashboardPDF(btn) {
     // ── Page 3: Summary ────────────────────────────────────────
     doc.addPage();
     y = pageTop('Summary', 'Where things stand, at a glance.');
-
-    // Verdict banner — one clear line with the specific reason behind it
-    doc.setFillColor(...verdictRgb);
-    doc.roundedRect(14, y, pw - 28, 15, 2, 2, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(12);
-    doc.setTextColor(255, 255, 255);
-    doc.text(verdictLabel, 20, y + 9.5);
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.text(verdictReason, pw - 20, y + 9.5, { align: 'right' });
-    y += 23;
 
     // Narrative paragraph — the actual "what's going on" summary
     doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(...PDF_ACCENT);

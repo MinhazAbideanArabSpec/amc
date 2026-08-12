@@ -70,10 +70,16 @@ function pdfCheckBreak(doc, y, needed) {
   return y;
 }
 
-function pdfFooters(doc) {
+function pdfFooters(doc, logoDataUrl) {
   const pw = doc.internal.pageSize.getWidth();
   const ph = doc.internal.pageSize.getHeight();
   const n  = doc.internal.getNumberOfPages();
+
+  let logo = null;
+  if (logoDataUrl) {
+    try { logo = pdfFitImage(doc, logoDataUrl, 16, 7); } catch { /* skip if unusable */ }
+  }
+
   for (let i = 1; i <= n; i++) {
     doc.setPage(i);
     doc.setFont('helvetica', 'normal');
@@ -81,6 +87,9 @@ function pdfFooters(doc) {
     doc.setTextColor(...PDF_MUTED);
     doc.text('ArabSpec IT - Confidential', 14, ph - 7);
     doc.text(`Page ${i} of ${n}`, pw - 14, ph - 7, { align: 'right' });
+    if (logo) {
+      doc.addImage(logoDataUrl, logo.format, pw - 14 - logo.w, ph - 18, logo.w, logo.h);
+    }
   }
 }
 
@@ -654,32 +663,28 @@ async function downloadDashboardPDF(btn) {
     // ── Page 1: Cover ──────────────────────────────────────────
     pdfBrandBar(doc, 'AMC Health Report');
 
-    // Customer logo (left) paired with the ArabSpec logo (right) — mirrors
-    // the Presented To / Prepared By columns further down the page.
-    const logoBandTop = 45, logoBandH = 26, logoMaxW = 45, logoGap = 10;
-    const logoPairW = logoMaxW * 2 + logoGap;
-    const logoPairX = (pw - logoPairW) / 2;
-    [customerLogoDataUrl, arabspecLogoDataUrl].forEach((dataUrl, i) => {
-      if (!dataUrl) return;
-      try {
-        const { w, h, format } = pdfFitImage(doc, dataUrl, logoMaxW, logoBandH);
-        const boxX = logoPairX + i * (logoMaxW + logoGap);
-        doc.addImage(dataUrl, format, boxX + (logoMaxW - w) / 2, logoBandTop + (logoBandH - h) / 2, w, h);
-      } catch { /* malformed or unsupported image — skip it, don't fail the report */ }
-    });
-
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...PDF_ACCENT);
-    doc.text('AMC HEALTH REPORT', pw / 2, 108, { align: 'center' });
+    doc.text('AMC HEALTH REPORT', pw / 2, 64, { align: 'center' });
+
+    // Customer logo, bigger and centered directly above the customer name.
+    if (customerLogoDataUrl) {
+      try {
+        const logoBandTop = 70, logoBandH = 32, logoMaxW = 55;
+        const { w, h, format } = pdfFitImage(doc, customerLogoDataUrl, logoMaxW, logoBandH);
+        doc.addImage(customerLogoDataUrl, format, (pw - w) / 2, logoBandTop + (logoBandH - h) / 2, w, h);
+      } catch { /* malformed or unsupported image — skip it, don't fail the report */ }
+    }
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);
     doc.setTextColor(...PDF_DARK);
-    doc.text(customerName, pw / 2, 123, { align: 'center' });
+    doc.text(customerName, pw / 2, 118, { align: 'center' });
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10.5);
     doc.setTextColor(...PDF_MUTED);
-    doc.text(`Report Date: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pw / 2, 133, { align: 'center' });
+    doc.text(`Report Date: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pw / 2, 128, { align: 'center' });
 
     doc.setDrawColor(...PDF_LINE);
     doc.setLineWidth(0.4);
@@ -996,7 +1001,7 @@ async function downloadDashboardPDF(btn) {
       });
     }
 
-    pdfFooters(doc);
+    pdfFooters(doc, arabspecLogoDataUrl);
     doc.save(`ArabSpecIT_Dashboard_${now.toISOString().split('T')[0]}.pdf`);
 
   } catch (err) {

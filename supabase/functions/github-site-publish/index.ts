@@ -17,16 +17,17 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const site = await resolveCallerSite(req);
-    if (isResponse(site)) return site;
-    const { repo, branch, token } = site;
-    const gh = ghHeaders(token);
-
     const form = await req.formData();
     const file = form.get('file');
     if (!(file instanceof File)) {
       return new Response(JSON.stringify({ error: 'No file uploaded' }), { status: 400, headers: corsHeaders });
     }
+    const requestedCustomerId = form.get('customerId');
+
+    const site = await resolveCallerSite(req, typeof requestedCustomerId === 'string' ? requestedCustomerId : null);
+    if (isResponse(site)) return site;
+    const { repo, branch, token } = site;
+    const gh = ghHeaders(token);
 
     const zip = await JSZip.loadAsync(await file.arrayBuffer());
     const entries: { path: string; bytes: Uint8Array }[] = [];

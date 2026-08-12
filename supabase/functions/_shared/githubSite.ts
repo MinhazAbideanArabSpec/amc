@@ -12,7 +12,14 @@ export const corsHeaders = {
 
 export type SiteContext = { repo: string; branch: string; token: string };
 
-export async function resolveCallerSite(req: Request): Promise<SiteContext | Response> {
+// requestedCustomerId lets an admin act on behalf of a client they're
+// viewing via "Login as Client" — that mode is purely a client-side
+// simulation (same Supabase Auth session as the admin), so without this
+// the server would always resolve the admin's own (nonexistent) site
+// instead of the client's. Only honored when the caller's own profile is
+// role='admin' — a regular customer/staff caller can never override which
+// customer_id they act as.
+export async function resolveCallerSite(req: Request, requestedCustomerId?: string | null): Promise<SiteContext | Response> {
   const authHeader = req.headers.get('Authorization');
   if (!authHeader) {
     return new Response(JSON.stringify({ error: 'Missing authorization' }), { status: 401, headers: corsHeaders });
@@ -33,11 +40,13 @@ export async function resolveCallerSite(req: Request): Promise<SiteContext | Res
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   );
 
-  const { data: profile } = await admin.from('profiles').select('id, customer_id').eq('id', user.id).single();
+  const { data: profile } = await admin.from('profiles').select('id, customer_id, role').eq('id', user.id).single();
   if (!profile) {
     return new Response(JSON.stringify({ error: 'No profile found' }), { status: 403, headers: corsHeaders });
   }
-  const customerId = profile.customer_id || profile.id;
+  const customerId = (profile.role === 'admin' && requestedCustomerId)
+    ? requestedCustomerId
+    : (profile.customer_id || profile.id);
 
   const { data: site } = await admin.from('customer_sites').select('repo, branch').eq('customer_id', customerId).single();
   if (!site) {

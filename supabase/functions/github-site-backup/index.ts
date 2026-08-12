@@ -11,7 +11,8 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const site = await resolveCallerSite(req);
+    const requestedCustomerId = new URL(req.url).searchParams.get('customerId');
+    const site = await resolveCallerSite(req, requestedCustomerId);
     if (isResponse(site)) return site;
     const { repo, branch, token } = site;
     const gh = ghHeaders(token);

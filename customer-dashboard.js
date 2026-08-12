@@ -969,7 +969,7 @@ async function downloadWebsiteBackup() {
 
   try {
     const { data: { session } } = await sb.auth.getSession();
-    const res = await fetch(`${SUPABASE_URL}/functions/v1/github-site-backup`, {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/github-site-backup?customerId=${encodeURIComponent(getCustomerId())}`, {
       headers: { 'Authorization': `Bearer ${session.access_token}` },
     });
     if (!res.ok) {
@@ -1012,6 +1012,7 @@ async function publishWebsiteChanges() {
   const { data: { session } } = await sb.auth.getSession();
   const form = new FormData();
   form.append('file', file);
+  form.append('customerId', getCustomerId());
 
   let result;
   try {

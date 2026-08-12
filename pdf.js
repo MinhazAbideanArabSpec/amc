@@ -668,14 +668,20 @@ async function downloadDashboardPDF(btn) {
     doc.setTextColor(...PDF_ACCENT);
     doc.text('ARAB SPEC DASHBOARD REPORT', pw / 2, 64, { align: 'center' });
 
-    // Customer logo, bigger and centered directly above the customer name.
-    if (customerLogoDataUrl) {
+    // Customer logo paired with the ArabSpec logo, both the same size,
+    // centered directly above the customer name. (The ArabSpec logo still
+    // appears again, small, in the bottom-right footer of every page.)
+    const logoBandTop = 70, logoBandH = 32, logoMaxW = 55, logoGap = 10;
+    const logoPairW = logoMaxW * 2 + logoGap;
+    const logoPairX = (pw - logoPairW) / 2;
+    [customerLogoDataUrl, arabspecLogoDataUrl].forEach((dataUrl, i) => {
+      if (!dataUrl) return;
       try {
-        const logoBandTop = 70, logoBandH = 32, logoMaxW = 55;
-        const { w, h, format } = pdfFitImage(doc, customerLogoDataUrl, logoMaxW, logoBandH);
-        doc.addImage(customerLogoDataUrl, format, (pw - w) / 2, logoBandTop + (logoBandH - h) / 2, w, h);
+        const { w, h, format } = pdfFitImage(doc, dataUrl, logoMaxW, logoBandH);
+        const boxX = logoPairX + i * (logoMaxW + logoGap);
+        doc.addImage(dataUrl, format, boxX + (logoMaxW - w) / 2, logoBandTop + (logoBandH - h) / 2, w, h);
       } catch { /* malformed or unsupported image — skip it, don't fail the report */ }
-    }
+    });
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(26);

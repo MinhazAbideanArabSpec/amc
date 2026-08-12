@@ -15,6 +15,18 @@ const PDF_PURPLE = [91, 33, 182];
 const PDF_TEAL   = [14, 165, 160];
 const PDF_SLATE  = [148, 163, 184];
 
+// Resolve the display name for whichever customer the report is about —
+// the company being viewed, not the person clicking Download (admin
+// "view as customer" mode, or a staff login under a parent company).
+async function resolveReportCustomerName() {
+  if (viewAsProfile) return viewAsProfile.name || 'Customer';
+  if (myProfile?.customer_id) {
+    const { data: company } = await sb.from('profiles').select('name').eq('id', myProfile.customer_id).single();
+    if (company?.name) return company.name;
+  }
+  return myProfile?.name || 'Customer';
+}
+
 // PDF-safe date formatter — always English, no special chars
 function pdfFmtDate(d) {
   if (!d) return '-';
@@ -212,7 +224,7 @@ async function downloadVisitReportPDF(reportId, visitNum, visitDate, engineerNam
   btn.disabled  = true;
 
   try {
-    const customerName = myProfile?.name || 'Customer';
+    const customerName = await resolveReportCustomerName();
 
     // Fetch data
     const [{ data: report }, { data: vras }] = await Promise.all([
@@ -449,7 +461,7 @@ async function downloadDashboardPDF(btn) {
 
   try {
     const customerId   = getCustomerId();
-    const customerName = myProfile?.name || 'Customer';
+    const customerName = await resolveReportCustomerName();
     const now          = new Date();
     const today         = now;
 
@@ -619,7 +631,7 @@ async function downloadDashboardPDF(btn) {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10.5);
     doc.setTextColor(...PDF_MUTED);
-    doc.text(now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }), pw / 2, 153, { align: 'center' });
+    doc.text(`Report Date: ${now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}`, pw / 2, 153, { align: 'center' });
 
     let y;
 

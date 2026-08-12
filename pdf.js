@@ -87,7 +87,7 @@ function pdfFooters(doc, logoDataUrl) {
     doc.setTextColor(...PDF_MUTED);
     doc.text('ArabSpec IT - Confidential', 14, ph - 7);
     doc.text(`Page ${i} of ${n}`, pw - 14, ph - 7, { align: 'right' });
-    if (logo) {
+    if (logo && i > 1) {
       doc.addImage(logoDataUrl, logo.format, pw - 14 - logo.w, ph - 13 - logo.h, logo.w, logo.h);
     }
   }
@@ -668,18 +668,21 @@ async function downloadDashboardPDF(btn) {
     doc.setTextColor(...PDF_ACCENT);
     doc.text('ARAB SPEC DASHBOARD REPORT', pw / 2, 64, { align: 'center' });
 
-    // Customer logo paired with the ArabSpec logo, both the same size,
-    // centered directly above the customer name. (The ArabSpec logo still
-    // appears again, small, in the bottom-right footer of every page.)
-    const logoBandTop = 70, logoBandH = 32, logoMaxW = 55, logoGap = 10;
-    const logoPairW = logoMaxW * 2 + logoGap;
+    // Customer logo paired with a smaller ArabSpec logo, centered directly
+    // above the customer name. (The ArabSpec logo also appears again, small,
+    // in the bottom-right footer of pages 2 onward.)
+    const logoBandTop = 70, logoBandH = 32, logoGap = 10;
+    const customerBoxW = 55, arabspecBoxW = 38, arabspecBoxH = 22;
+    const logoPairW = customerBoxW + arabspecBoxW + logoGap;
     const logoPairX = (pw - logoPairW) / 2;
-    [customerLogoDataUrl, arabspecLogoDataUrl].forEach((dataUrl, i) => {
+    [
+      { dataUrl: customerLogoDataUrl, boxX: logoPairX, boxW: customerBoxW, boxH: logoBandH },
+      { dataUrl: arabspecLogoDataUrl, boxX: logoPairX + customerBoxW + logoGap, boxW: arabspecBoxW, boxH: arabspecBoxH },
+    ].forEach(({ dataUrl, boxX, boxW, boxH }) => {
       if (!dataUrl) return;
       try {
-        const { w, h, format } = pdfFitImage(doc, dataUrl, logoMaxW, logoBandH);
-        const boxX = logoPairX + i * (logoMaxW + logoGap);
-        doc.addImage(dataUrl, format, boxX + (logoMaxW - w) / 2, logoBandTop + (logoBandH - h) / 2, w, h);
+        const { w, h, format } = pdfFitImage(doc, dataUrl, boxW, boxH);
+        doc.addImage(dataUrl, format, boxX + (boxW - w) / 2, logoBandTop + (logoBandH - h) / 2, w, h);
       } catch { /* malformed or unsupported image — skip it, don't fail the report */ }
     });
 

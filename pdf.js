@@ -15,16 +15,44 @@ const PDF_PURPLE = [91, 33, 182];
 const PDF_TEAL   = [14, 165, 160];
 const PDF_SLATE  = [148, 163, 184];
 
-// Resolve the display name for whichever customer the report is about —
-// the company being viewed, not the person clicking Download (admin
-// "view as customer" mode, or a staff login under a parent company).
-async function resolveReportCustomerName() {
-  if (viewAsProfile) return viewAsProfile.name || 'Customer';
+// Resolve who the report is about — the company being viewed, not the
+// person clicking Download (admin "view as customer" mode, or a staff
+// login under a parent company).
+async function resolveReportCustomer() {
+  if (viewAsProfile) return { name: viewAsProfile.name || 'Customer', logo_path: viewAsProfile.logo_path || null };
   if (myProfile?.customer_id) {
-    const { data: company } = await sb.from('profiles').select('name').eq('id', myProfile.customer_id).single();
-    if (company?.name) return company.name;
+    const { data: company } = await sb.from('profiles').select('name, logo_path').eq('id', myProfile.customer_id).single();
+    if (company?.name) return { name: company.name, logo_path: company.logo_path || null };
   }
-  return myProfile?.name || 'Customer';
+  return { name: myProfile?.name || 'Customer', logo_path: myProfile?.logo_path || null };
+}
+
+// Fetch an image (e.g. a Supabase storage public URL) and convert it to a
+// data URL — jsPDF's addImage can't take a bare URL, only raw image data.
+async function pdfFetchImageDataUrl(url) {
+  if (!url) return null;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+// Scale an image to fit within a box, preserving aspect ratio.
+function pdfFitImage(doc, dataUrl, maxW, maxH) {
+  const props = doc.getImageProperties(dataUrl);
+  const ratio = props.width / props.height;
+  let w = maxW, h = maxW / ratio;
+  if (h > maxH) { h = maxH; w = maxH * ratio; }
+  return { w, h, format: props.fileType };
 }
 
 // PDF-safe date formatter — always English, no special chars
@@ -224,7 +252,7 @@ async function downloadVisitReportPDF(reportId, visitNum, visitDate, engineerNam
   btn.disabled  = true;
 
   try {
-    const customerName = await resolveReportCustomerName();
+    const { name: customerName } = await resolveReportCustomer();
 
     // Fetch data
     const [{ data: report }, { data: vras }] = await Promise.all([
@@ -461,7 +489,7 @@ async function downloadDashboardPDF(btn) {
 
   try {
     const customerId   = getCustomerId();
-    const customerName = await resolveReportCustomerName();
+    const { name: customerName, logo_path: customerLogoPath } = await resolveReportCustomer();
     const now          = new Date();
     const today         = now;
 
@@ -470,13 +498,18 @@ async function downloadDashboardPDF(btn) {
     const assets       = customerAssetsCache || [];
     const tagGroups    = window._dashTagGroups || {};
 
-    const [{ data: subs }, { data: visits }, { data: completedNums }, { data: latestVras }] = await Promise.all([
+    const { data: arabspecLogoUrlData } = sb.storage.from('logos').getPublicUrl('site/logo');
+    const customerLogoUrl = customerLogoPath ? sb.storage.from('logos').getPublicUrl(customerLogoPath).data?.publicUrl : null;
+
+    const [{ data: subs }, { data: visits }, { data: completedNums }, { data: latestVras }, customerLogoDataUrl, arabspecLogoDataUrl] = await Promise.all([
       sb.from('subscriptions').select('*').eq('customer_id', customerId).order('end_date', { ascending: true }),
       sb.from('visit_reports').select('id, visit_number, visit_date, engineer_name').eq('customer_id', customerId).order('visit_date', { ascending: false }).limit(8),
       sb.from('visit_reports').select('visit_number').eq('customer_id', customerId).eq('status', 'completed'),
       assets.length
         ? sb.from('visit_report_assets').select('id, asset_id').in('asset_id', assets.map(a => a.id)).order('created_at', { ascending: false })
         : Promise.resolve({ data: [] }),
+      pdfFetchImageDataUrl(customerLogoUrl),
+      pdfFetchImageDataUrl(arabspecLogoUrlData?.publicUrl),
     ]);
     const subscriptions  = subs || [];
     const recentVisits   = visits || [];
@@ -620,6 +653,21 @@ async function downloadDashboardPDF(btn) {
 
     // ── Page 1: Cover ──────────────────────────────────────────
     pdfBrandBar(doc, 'AMC Health Report');
+
+    // Customer logo (left) paired with the ArabSpec logo (right) — mirrors
+    // the Presented To / Prepared By columns further down the page.
+    const logoBandTop = 45, logoBandH = 26, logoMaxW = 45, logoGap = 10;
+    const logoPairW = logoMaxW * 2 + logoGap;
+    const logoPairX = (pw - logoPairW) / 2;
+    [customerLogoDataUrl, arabspecLogoDataUrl].forEach((dataUrl, i) => {
+      if (!dataUrl) return;
+      try {
+        const { w, h, format } = pdfFitImage(doc, dataUrl, logoMaxW, logoBandH);
+        const boxX = logoPairX + i * (logoMaxW + logoGap);
+        doc.addImage(dataUrl, format, boxX + (logoMaxW - w) / 2, logoBandTop + (logoBandH - h) / 2, w, h);
+      } catch { /* malformed or unsupported image — skip it, don't fail the report */ }
+    });
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(9);
     doc.setTextColor(...PDF_ACCENT);

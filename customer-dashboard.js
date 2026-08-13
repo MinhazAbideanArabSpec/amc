@@ -953,6 +953,11 @@ async function loadCustomerWebsiteTab(customerId) {
     <button class="secondary" onclick="downloadWebsiteBackup()" id="website-backup-btn">Download Backup</button>
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <label>Repository Files</label>
+      <div id="website-files-list"><div class="empty-state">Loading…</div></div>
+    </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
       <label>Publish updated files</label>
       <input type="file" id="website-upload-input" multiple/>
       <div style="font-size:12px;color:#94A3B8;margin:6px 0 12px;">Select one or more files (.html, .css, .js, images, …) to replace files with the same name at your site's root — or select a single .zip to replace matching files anywhere in the folder structure.</div>
@@ -960,6 +965,106 @@ async function loadCustomerWebsiteTab(customerId) {
       <div id="website-publish-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
     </div>
   `;
+
+  loadWebsiteFileList();
+}
+
+function fmtFileSize(bytes) {
+  if (bytes == null) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+async function loadWebsiteFileList() {
+  const listEl = document.getElementById('website-files-list');
+  if (!listEl) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  let result;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/github-site-list?customerId=${encodeURIComponent(getCustomerId())}`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Could not load the file list.');
+  } catch (err) {
+    listEl.innerHTML = `<div class="empty-state">${err.message || 'Could not load the file list.'}</div>`;
+    return;
+  }
+
+  const files = result.files || [];
+  if (!files.length) {
+    listEl.innerHTML = '<div class="empty-state">No files found in the repository.</div>';
+    return;
+  }
+
+  listEl.innerHTML = `
+    <div style="max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;">
+      ${files.map((f, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
+          ${i % 2 === 0 ? 'background:#F8F9FA;' : ''} ${i < files.length - 1 ? 'border-bottom:1px solid var(--line);' : ''}">
+          <span style="font-size:12.5px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.path}</span>
+          <span style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
+            <span style="font-size:11.5px;color:#94A3B8;">${fmtFileSize(f.size)}</span>
+            <button class="secondary" style="padding:3px 10px;font-size:12px;" onclick="viewWebsiteFile('${f.sha}','${f.path.replace(/'/g, "\\'")}')">View</button>
+          </span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function classifyWebsiteFile(path) {
+  const dotIdx = path.lastIndexOf('.');
+  const hasExt = dotIdx > path.lastIndexOf('/');
+  const ext = hasExt ? path.slice(dotIdx + 1).toLowerCase() : '';
+  const imageExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'ico', 'bmp', 'svg'];
+  const textExts  = ['html', 'htm', 'css', 'js', 'mjs', 'cjs', 'json', 'md', 'markdown', 'txt',
+    'xml', 'yml', 'yaml', 'csv', 'ts', 'tsx', 'jsx', 'py', 'rb', 'php', 'sh', 'toml', 'ini', 'conf', 'sql'];
+  if (imageExts.includes(ext)) return 'image';
+  if (!hasExt || textExts.includes(ext)) return 'text';
+  return 'binary';
+}
+
+function base64ToUtf8(b64) {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+async function viewWebsiteFile(sha, path) {
+  document.getElementById('website-file-modal-title').textContent = path;
+  const bodyEl = document.getElementById('website-file-modal-body');
+  bodyEl.innerHTML = '<div class="empty-state">Loading…</div>';
+  document.getElementById('website-file-modal-overlay').classList.add('open');
+
+  const { data: { session } } = await sb.auth.getSession();
+  let result;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/github-site-file?customerId=${encodeURIComponent(getCustomerId())}&sha=${encodeURIComponent(sha)}`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Could not load this file.');
+  } catch (err) {
+    bodyEl.innerHTML = `<div class="empty-state">${err.message || 'Could not load this file.'}</div>`;
+    return;
+  }
+
+  const kind = classifyWebsiteFile(path);
+  if (kind === 'image') {
+    const ext = (path.split('.').pop() || '').toLowerCase();
+    const mime = ext === 'svg' ? 'image/svg+xml' : `image/${ext === 'jpg' ? 'jpeg' : ext}`;
+    bodyEl.innerHTML = `<img src="data:${mime};base64,${result.content}" style="max-width:100%;display:block;margin:0 auto;"/>`;
+  } else if (kind === 'text') {
+    let text;
+    try { text = base64ToUtf8(result.content); } catch { text = '(Could not decode this file as text.)'; }
+    bodyEl.innerHTML = `<pre style="white-space:pre-wrap;word-break:break-word;font-size:12px;background:#F8F9FA;padding:12px;border-radius:6px;margin:0;">${text.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</pre>`;
+  } else {
+    bodyEl.innerHTML = `<div class="empty-state">Preview isn't available for this file type (${fmtFileSize(result.size)}). Use Download Backup to get the full file.</div>`;
+  }
 }
 
 async function downloadWebsiteBackup() {

@@ -726,4 +726,25 @@
     .status-asset-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
     .status-asset-row:last-child { border-bottom: none; }
     .status-asset-row .sa-name { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+
+    /* ── Ticketing ── */
+    .ticket-row { border: 1px solid var(--line); border-radius: 6px; padding: 12px 16px; margin-bottom: 10px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s; }
+    .ticket-row:hover { border-color: var(--accent); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .ticket-row-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+    .ticket-subject { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+    .ticket-meta { font-size: 12px; color: #8A8377; }
+    .ticket-badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+    .ticket-badge.status-open        { background: var(--slate-bg); color: var(--accent-dark); }
+    .ticket-badge.status-in_progress { background: var(--amber-bg); color: var(--amber); }
+    .ticket-badge.status-resolved    { background: var(--sage-bg);  color: var(--sage); }
+    .ticket-badge.status-closed      { background: #F1EFE8; color: #6B6354; }
+    .ticket-badge.priority-low     { background: var(--slate-bg); color: #64748B; }
+    .ticket-badge.priority-normal  { background: var(--slate-bg); color: var(--accent-dark); }
+    .ticket-badge.priority-high    { background: var(--amber-bg); color: var(--amber); }
+    .ticket-badge.priority-urgent  { background: var(--rust-bg);  color: var(--rust); }
+
+    .ticket-msg { border-left: 3px solid var(--accent); background: var(--slate-bg); border-radius: 0 4px 4px 0; padding: 10px 14px; margin-bottom: 10px; }
+    .ticket-msg.from-customer { border-left-color: var(--sage); background: var(--sage-bg); }
+    .ticket-msg-meta { font-size: 11.5px; color: #8A8377; margin-bottom: 4px; font-weight: 600; }
+    .ticket-msg-body { font-size: 13px; color: var(--ink); white-space: pre-wrap; word-break: break-word; }
     .status-asset-row .sa-sub  { font-size: 12px; color: #8A8377; margin-top: 2px; }

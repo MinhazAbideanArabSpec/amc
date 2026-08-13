@@ -964,9 +964,16 @@ async function loadCustomerWebsiteTab(customerId) {
       <button onclick="publishWebsiteChanges()" id="website-publish-btn">Publish Changes</button>
       <div id="website-publish-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
     </div>
+
+    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
+      <label>Version History</label>
+      <div style="font-size:12px;color:#94A3B8;margin-bottom:10px;">Every change made to your site, whether published from here or another way.</div>
+      <div id="website-history-list"><div class="empty-state">Loading…</div></div>
+    </div>
   `;
 
   loadWebsiteFileList();
+  loadWebsiteHistory();
 }
 
 function fmtFileSize(bytes) {
@@ -1065,6 +1072,95 @@ async function viewWebsiteFile(sha, path) {
   } else {
     bodyEl.innerHTML = `<div class="empty-state">Preview isn't available for this file type (${fmtFileSize(result.size)}). Use Download Backup to get the full file.</div>`;
   }
+}
+
+function escapeHtml(s) {
+  return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+async function loadWebsiteHistory() {
+  const listEl = document.getElementById('website-history-list');
+  if (!listEl) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  let result;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/github-site-history?customerId=${encodeURIComponent(getCustomerId())}`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Could not load the version history.');
+  } catch (err) {
+    listEl.innerHTML = `<div class="empty-state">${escapeHtml(err.message || 'Could not load the version history.')}</div>`;
+    return;
+  }
+
+  const commits = result.commits || [];
+  if (!commits.length) {
+    listEl.innerHTML = '<div class="empty-state">No changes recorded yet.</div>';
+    return;
+  }
+
+  listEl.innerHTML = `
+    <div style="max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;">
+      ${commits.map((c, i) => {
+        const firstLine = (c.message || '').split('\n')[0];
+        return `
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
+          ${i % 2 === 0 ? 'background:#F8F9FA;' : ''} ${i < commits.length - 1 ? 'border-bottom:1px solid var(--line);' : ''}">
+          <span style="min-width:0;overflow:hidden;">
+            <div style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(firstLine)}</div>
+            <div style="font-size:11px;color:#94A3B8;">${escapeHtml(c.authorName)} · ${fmtDateTime(c.date)} · <span style="font-family:monospace;">${escapeHtml((c.sha || '').slice(0, 7))}</span></div>
+          </span>
+          <button class="secondary" style="padding:3px 10px;font-size:12px;flex-shrink:0;" onclick="viewCommitChanges('${c.sha}')">View Changes</button>
+        </div>
+      `; }).join('')}
+    </div>
+  `;
+}
+
+async function viewCommitChanges(sha) {
+  document.getElementById('website-file-modal-title').textContent = 'Version History';
+  const bodyEl = document.getElementById('website-file-modal-body');
+  bodyEl.innerHTML = '<div class="empty-state">Loading…</div>';
+  document.getElementById('website-file-modal-overlay').classList.add('open');
+
+  const { data: { session } } = await sb.auth.getSession();
+  let result;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/github-site-commit?customerId=${encodeURIComponent(getCustomerId())}&sha=${encodeURIComponent(sha)}`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Could not load this change.');
+  } catch (err) {
+    bodyEl.innerHTML = `<div class="empty-state">${escapeHtml(err.message || 'Could not load this change.')}</div>`;
+    return;
+  }
+
+  const statusLabel = { added: 'Added', modified: 'Modified', removed: 'Removed', renamed: 'Renamed' };
+  const statusColor  = { added: 'var(--sage)', modified: 'var(--accent)', removed: 'var(--rust)', renamed: 'var(--amber)' };
+  const files = result.files || [];
+
+  bodyEl.innerHTML = `
+    <div style="font-size:13px;font-weight:600;color:var(--ink);margin-bottom:2px;">${escapeHtml((result.message || '').split('\n')[0])}</div>
+    <div style="font-size:11.5px;color:#94A3B8;margin-bottom:14px;">${escapeHtml(result.authorName)} · ${fmtDateTime(result.date)}</div>
+    ${files.length ? `
+      <div style="border:1px solid var(--line);border-radius:6px;overflow:hidden;">
+        ${files.map((f, i) => `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
+            ${i < files.length - 1 ? 'border-bottom:1px solid var(--line);' : ''}">
+            <span style="font-size:12.5px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.filename)}</span>
+            <span style="display:flex;align-items:center;gap:8px;flex-shrink:0;font-size:11.5px;">
+              <span style="color:${statusColor[f.status] || 'var(--ink-soft)'};font-weight:600;">${statusLabel[f.status] || f.status}</span>
+              <span style="color:var(--sage);">+${f.additions}</span>
+              <span style="color:var(--rust);">-${f.deletions}</span>
+            </span>
+          </div>
+        `).join('')}
+      </div>
+    ` : '<div class="empty-state">No file changes recorded for this commit.</div>'}
+  `;
 }
 
 async function downloadWebsiteBackup() {

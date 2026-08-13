@@ -1,7 +1,8 @@
 // send-expiry-alerts — runs on a daily cron schedule (see supabase/SETUP.md).
 // Checks contracts and software renewals for 60/30/14/7-day expiry thresholds
-// and emails all admins plus the affected customer and their staff accounts,
-// via the Zoho SMTP credentials saved through the Settings tab.
+// and emails the affected customer and their staff accounts directly (To),
+// with all admins copied privately (Bcc) so recipients never see each
+// other's addresses, via the Zoho SMTP credentials saved through Settings.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
@@ -15,13 +16,19 @@ function daysUntil(dateStr: string): number {
   return Math.round((target.getTime() - today.getTime()) / 86400000);
 }
 
-async function getRecipients(admin: ReturnType<typeof createClient>, customerId: string, adminEmails: string[]): Promise<string[]> {
+async function getRecipients(admin: ReturnType<typeof createClient>, customerId: string, adminEmails: string[]): Promise<{ to: string[]; bcc: string[] }> {
   const { data: customer } = await admin.from('profiles').select('email').eq('id', customerId).single();
   const { data: staff } = await admin.from('profiles').select('email').eq('customer_id', customerId);
-  const emails = new Set<string>(adminEmails);
-  if (customer?.email) emails.add(customer.email);
-  (staff || []).forEach((s: { email: string | null }) => { if (s.email) emails.add(s.email); });
-  return Array.from(emails);
+  const to = new Set<string>();
+  if (customer?.email) to.add(customer.email);
+  (staff || []).forEach((s: { email: string | null }) => { if (s.email) to.add(s.email); });
+
+  // No customer/staff email on file for this account — fall back to
+  // notifying admins directly rather than silently dropping the alert.
+  if (to.size === 0) return { to: adminEmails, bcc: [] };
+
+  const bcc = adminEmails.filter(e => !to.has(e));
+  return { to: Array.from(to), bcc };
 }
 
 Deno.serve(async (_req) => {
@@ -61,8 +68,8 @@ Deno.serve(async (_req) => {
     if (existing) continue;
 
     const { data: customer } = await admin.from('profiles').select('name').eq('id', c.customer_id).single();
-    const recipients = await getRecipients(admin, c.customer_id, adminEmails);
-    if (!recipients.length) continue;
+    const { to, bcc } = await getRecipients(admin, c.customer_id, adminEmails);
+    if (!to.length) continue;
 
     const alertData = {
       type: 'contract' as const,
@@ -74,7 +81,8 @@ Deno.serve(async (_req) => {
 
     await client.send({
       from: cfg.smtp_username,
-      to: recipients,
+      to,
+      bcc,
       subject: renderAlertSubject(alertData),
       content: renderAlertEmailText(alertData),
       html: renderAlertEmailHtml(alertData),
@@ -93,8 +101,8 @@ Deno.serve(async (_req) => {
     if (existing) continue;
 
     const { data: customer } = await admin.from('profiles').select('name').eq('id', s.customer_id).single();
-    const recipients = await getRecipients(admin, s.customer_id, adminEmails);
-    if (!recipients.length) continue;
+    const { to, bcc } = await getRecipients(admin, s.customer_id, adminEmails);
+    if (!to.length) continue;
 
     const alertData = {
       type: 'subscription' as const,
@@ -107,7 +115,8 @@ Deno.serve(async (_req) => {
 
     await client.send({
       from: cfg.smtp_username,
-      to: recipients,
+      to,
+      bcc,
       subject: renderAlertSubject(alertData),
       content: renderAlertEmailText(alertData),
       html: renderAlertEmailHtml(alertData),

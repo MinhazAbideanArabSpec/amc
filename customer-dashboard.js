@@ -1011,10 +1011,11 @@ async function loadWebsiteFileList() {
       ${files.map((f, i) => `
         <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
           ${i % 2 === 0 ? 'background:#F8F9FA;' : ''} ${i < files.length - 1 ? 'border-bottom:1px solid var(--line);' : ''}">
-          <span style="font-size:12.5px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${f.path}</span>
+          <span style="font-size:12.5px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.path)}</span>
           <span style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
             <span style="font-size:11.5px;color:#94A3B8;">${fmtFileSize(f.size)}</span>
             <button class="secondary" style="padding:3px 10px;font-size:12px;" onclick="viewWebsiteFile('${f.sha}','${f.path.replace(/'/g, "\\'")}')">View</button>
+            <button class="danger" style="padding:3px 10px;font-size:12px;" onclick="openDeleteFileModal('${f.sha}','${f.path.replace(/'/g, "\\'")}')">Delete</button>
           </span>
         </div>
       `).join('')}
@@ -1161,6 +1162,54 @@ async function viewCommitChanges(sha) {
       </div>
     ` : '<div class="empty-state">No file changes recorded for this commit.</div>'}
   `;
+}
+
+let _pendingDeleteFile = null;
+
+function openDeleteFileModal(sha, path) {
+  _pendingDeleteFile = { sha, path };
+  document.getElementById('website-delete-modal-path').textContent = path;
+  document.getElementById('website-delete-modal-error').style.display = 'none';
+  document.getElementById('website-delete-modal-overlay').classList.add('open');
+}
+
+function closeDeleteFileModal() {
+  document.getElementById('website-delete-modal-overlay').classList.remove('open');
+  _pendingDeleteFile = null;
+}
+
+async function confirmDeleteWebsiteFile() {
+  if (!_pendingDeleteFile) return;
+  const { sha, path } = _pendingDeleteFile;
+  const btn = document.getElementById('website-delete-confirm-btn');
+  const errEl = document.getElementById('website-delete-modal-error');
+  errEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Deleting…';
+
+  const { data: { session } } = await sb.auth.getSession();
+  let result;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/github-site-delete-file`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ customerId: getCustomerId(), path, sha }),
+    });
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Could not delete this file.');
+  } catch (err) {
+    btn.disabled = false;
+    btn.textContent = 'Delete File';
+    errEl.textContent = err.message || 'Could not delete this file.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Delete File';
+  closeDeleteFileModal();
+  loadWebsiteFileList();
+  loadWebsiteHistory();
 }
 
 async function downloadWebsiteBackup() {

@@ -1222,6 +1222,25 @@
   </div>
 </div>
 
+<!-- WEBSITE DELETE FILE MODAL -->
+<div class="modal-overlay" id="website-delete-modal-overlay">
+  <div class="modal-box">
+    <h2>Delete File</h2>
+    <div style="font-size:13px;margin:12px 0;">
+      Delete <strong id="website-delete-modal-path" style="font-family:monospace;word-break:break-all;"></strong> from your live website?
+    </div>
+    <div style="color:var(--rust);background:var(--rust-bg);border-radius:3px;padding:10px 12px;font-size:12.5px;line-height:1.5;margin-bottom:14px;">
+      ⚠️ This removes the file immediately. If other pages, styles, or scripts on your site reference it, your website may break or go down until it's fixed. This can't be undone from here — use Download Backup first if you're not sure.
+    </div>
+    <div id="website-delete-modal-error" style="color:var(--rust);background:var(--rust-bg);border-radius:3px;
+      padding:8px 12px;font-size:13px;margin-bottom:10px;display:none;"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeDeleteFileModal()">Cancel</button>
+      <button class="danger" onclick="confirmDeleteWebsiteFile()" id="website-delete-confirm-btn">Delete File</button>
+    </div>
+  </div>
+</div>
+
 <!-- TAG DETAIL MODAL -->
 <div class="modal-overlay" id="tag-detail-modal-overlay">
   <div class="modal-box wide">

@@ -16,6 +16,15 @@ function getCustomerId() {
   return myProfile?.customer_id || myProfile?.id;
 }
 
+// PWA install support — service workers require a secure context
+// (https, or localhost), so this silently no-ops on http/file:// during
+// local testing and only actually registers once deployed.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  });
+}
+
 // ── Site-wide ArabSpec logo (stored at a fixed path in the 'logos' bucket) ──
 function loadSiteLogo() {
   const { data } = sb.storage.from('logos').getPublicUrl('site/logo');
@@ -164,6 +173,41 @@ async function saveGithubToken() {
     statusEl.style.color = 'var(--sage)';
     statusEl.textContent = 'GitHub token saved.';
     document.getElementById('github-token-input').value = '';
+  }
+}
+
+async function downloadDatabaseBackup() {
+  const btn = document.getElementById('db-backup-btn');
+  const statusEl = document.getElementById('db-backup-status');
+  statusEl.style.display = 'none';
+  btn.disabled = true;
+  btn.textContent = 'Preparing…';
+
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/admin-backup-database`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+    if (!res.ok) {
+      const result = await res.json().catch(() => ({}));
+      throw new Error(result.error || 'Could not prepare the backup.');
+    }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (res.headers.get('Content-Disposition') || '').match(/filename="(.+)"/)?.[1] || 'amc-backup.zip';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = err.message || 'Could not prepare the backup.';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Download Backup';
   }
 }
 

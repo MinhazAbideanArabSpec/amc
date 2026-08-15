@@ -1,0 +1,19 @@
+{
+  "name": "ArabSpec AMC Portal",
+  "short_name": "AMC Portal",
+  "description": "AMC service, contract, and asset management portal.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#FAFAF9",
+  "theme_color": "#1C2127",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

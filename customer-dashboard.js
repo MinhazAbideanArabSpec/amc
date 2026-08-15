@@ -947,7 +947,12 @@ async function loadCustomerWebsiteTab(customerId) {
   }
 
   el.innerHTML = `
-    <div style="font-size:13px;color:#475569;margin-bottom:16px;">
+    <div>
+      <label>Visitors (last 7 days)</label>
+      <div id="website-analytics-body"><div class="empty-state">Loading…</div></div>
+    </div>
+
+    <div style="font-size:13px;color:#475569;margin:20px 0 16px;padding-top:16px;border-top:1px solid var(--line);">
       Download a backup of your current files before making changes — if something goes wrong after publishing, you can always re-upload it.
     </div>
     <button class="secondary" onclick="downloadWebsiteBackup()" id="website-backup-btn">Download Backup</button>
@@ -974,6 +979,41 @@ async function loadCustomerWebsiteTab(customerId) {
 
   loadWebsiteFileList();
   loadWebsiteHistory();
+  loadWebsiteAnalytics();
+}
+
+async function loadWebsiteAnalytics() {
+  const el = document.getElementById('website-analytics-body');
+  if (!el) return;
+
+  const { data: { session } } = await sb.auth.getSession();
+  let result;
+  try {
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/vercel-analytics?customerId=${encodeURIComponent(getCustomerId())}`, {
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+    });
+    result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Could not load analytics.');
+  } catch (err) {
+    el.innerHTML = `<div class="empty-state">${escapeHtml(err.message || 'Could not load analytics.')}</div>`;
+    return;
+  }
+
+  const topPagesHtml = (result.topPages || []).length
+    ? result.topPages.map(p => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;font-size:12.5px;">
+          <span style="font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(p.path || '/')}</span>
+          <span style="color:#94A3B8;flex-shrink:0;margin-left:10px;">${p.visitors} visitor${p.visitors === 1 ? '' : 's'}</span>
+        </div>`).join('')
+    : '';
+
+  el.innerHTML = `
+    <div style="display:flex;gap:24px;margin:8px 0 4px;">
+      <div><div style="font-size:24px;font-weight:700;color:var(--ink);">${result.visitors}</div><div style="font-size:11.5px;color:#94A3B8;">Visitors</div></div>
+      <div><div style="font-size:24px;font-weight:700;color:var(--ink);">${result.pageviews}</div><div style="font-size:11.5px;color:#94A3B8;">Page Views</div></div>
+    </div>
+    ${topPagesHtml ? `<div style="margin-top:10px;border-top:1px solid var(--line);padding-top:8px;">${topPagesHtml}</div>` : ''}
+  `;
 }
 
 function fmtFileSize(bytes) {

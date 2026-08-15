@@ -176,6 +176,38 @@ async function saveGithubToken() {
   }
 }
 
+async function saveVercelToken() {
+  const token = document.getElementById('vercel-token-input').value.trim();
+  const statusEl = document.getElementById('vercel-token-status');
+  const btn = document.getElementById('vercel-token-save-btn');
+
+  if (!token) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Enter a token.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  statusEl.style.display = 'none';
+
+  const { data, error } = await sb.functions.invoke('save-vercel-token', { body: { token } });
+
+  btn.disabled = false;
+  btn.textContent = 'Save Token';
+
+  statusEl.style.display = 'block';
+  if (error || data?.error) {
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Failed to save: ' + (data?.error || error.message);
+  } else {
+    statusEl.style.color = 'var(--sage)';
+    statusEl.textContent = 'Vercel token saved.';
+    document.getElementById('vercel-token-input').value = '';
+  }
+}
+
 async function downloadDatabaseBackup() {
   const btn = document.getElementById('db-backup-btn');
   const statusEl = document.getElementById('db-backup-status');

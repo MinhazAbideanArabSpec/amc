@@ -497,6 +497,19 @@
           <button class="secondary" onclick="downloadDatabaseBackup()" id="db-backup-btn">Download Backup</button>
           <div id="db-backup-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
         </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>📈 Vercel Analytics</h2>
+          </div>
+          <div style="font-size:12px;color:#94A3B8;margin-bottom:12px;">
+            Lets clients see their site's visitor stats from their own Website tab. Set the token here once, then connect each client's Vercel project from Clients → Website.
+          </div>
+          <label>Vercel Access Token</label>
+          <input type="password" id="vercel-token-input" placeholder="Personal or team access token"/>
+          <button class="secondary" onclick="saveVercelToken()" id="vercel-token-save-btn">Save Token</button>
+          <div id="vercel-token-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
+        </div>
       </div>
 
       <!-- SMTP panel -->
@@ -1258,6 +1271,11 @@
     <input type="text" id="website-repo-input" placeholder="arabspec/client-site"/>
     <label>Branch</label>
     <input type="text" id="website-branch-input" placeholder="main" value="main"/>
+    <div style="font-size:11px;color:#94A3B8;margin:2px 0 10px;">Optional — lets this client see visitor stats from their Website tab.</div>
+    <label>Vercel Project ID</label>
+    <input type="text" id="website-vercel-project-input" placeholder="prj_xxxxxxxxxxxxxxxxxxxx"/>
+    <label>Vercel Team ID <span style="font-weight:400;color:#94A3B8;">(leave blank for a personal account project)</span></label>
+    <input type="text" id="website-vercel-team-input" placeholder="team_xxxxxxxxxxxxxxxxxxxx"/>
     <div id="website-modal-error" style="color:var(--rust);background:var(--rust-bg);border-radius:3px;
       padding:8px 12px;font-size:13px;margin-bottom:10px;display:none;"></div>
     <div class="modal-actions">

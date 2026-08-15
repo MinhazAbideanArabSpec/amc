@@ -1,7 +1,9 @@
 // vercel-analytics — read-only. Queries Vercel's Web Analytics API for
-// the caller's connected site (visitors/pageviews over the last 7 days,
-// plus top pages), using the shared Vercel access token from app_secrets
-// and the per-customer vercel_project_id/vercel_team_id on customer_sites.
+// the caller's connected site: headline visitors/pageviews, the daily
+// trend, and breakdowns by page, referrer, country, device, and browser
+// — everything the "Visits" dataset exposes — over the last 7 days.
+// Uses the shared Vercel access token from app_secrets and the
+// per-customer vercel_project_id/vercel_team_id on customer_sites.
 //
 // requestedCustomerId lets an admin viewing a client via "Login as
 // Client" pull that client's analytics rather than their own (same
@@ -70,14 +72,24 @@ Deno.serve(async (req) => {
     dateParams.set('since', since.toISOString().split('T')[0]);
     dateParams.set('until', until.toISOString().split('T')[0]);
 
-    const countParams = new URLSearchParams(dateParams);
-    const topPagesParams = new URLSearchParams(dateParams);
-    topPagesParams.set('by', 'requestPath');
-    topPagesParams.set('limit', '5');
+    function aggregateUrl(by: string, limit = 10) {
+      const p = new URLSearchParams(dateParams);
+      p.set('by', by);
+      p.set('limit', String(limit));
+      return `https://api.vercel.com/v1/query/web-analytics/visits/aggregate?${p}`;
+    }
 
-    const [countRes, topPagesRes] = await Promise.all([
-      fetch(`https://api.vercel.com/v1/query/web-analytics/visits/count?${countParams}`, { headers: vercelHeaders }),
-      fetch(`https://api.vercel.com/v1/query/web-analytics/visits/aggregate?${topPagesParams}`, { headers: vercelHeaders }),
+    const [
+      countRes, dailyRes, pagesRes, referrersRes, countriesRes, devicesRes, browsersRes, osRes,
+    ] = await Promise.all([
+      fetch(`https://api.vercel.com/v1/query/web-analytics/visits/count?${dateParams}`, { headers: vercelHeaders }),
+      fetch(aggregateUrl('day', 31), { headers: vercelHeaders }),
+      fetch(aggregateUrl('requestPath'), { headers: vercelHeaders }),
+      fetch(aggregateUrl('referrerHostname'), { headers: vercelHeaders }),
+      fetch(aggregateUrl('country'), { headers: vercelHeaders }),
+      fetch(aggregateUrl('deviceType'), { headers: vercelHeaders }),
+      fetch(aggregateUrl('browserName'), { headers: vercelHeaders }),
+      fetch(aggregateUrl('osName'), { headers: vercelHeaders }),
     ]);
 
     if (!countRes.ok) {
@@ -85,18 +97,37 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: errBody.error?.message || `Could not read analytics (Vercel ${countRes.status})` }), { status: 502, headers: corsHeaders });
     }
 
+    const asJson = async (res: Response) => (res.ok ? await res.json() : { data: [] });
     const countData = await countRes.json();
-    const topPagesData = topPagesRes.ok ? await topPagesRes.json() : { data: [] };
+    const [dailyData, pagesData, referrersData, countriesData, devicesData, browsersData, osData] = await Promise.all(
+      [dailyRes, pagesRes, referrersRes, countriesRes, devicesRes, browsersRes, osRes].map(asJson)
+    );
 
     return new Response(JSON.stringify({
       visitors: countData.data?.visitors ?? 0,
       pageviews: countData.data?.pageviews ?? 0,
       sinceDate: dateParams.get('since'),
       untilDate: dateParams.get('until'),
-      topPages: (topPagesData.data || []).map((row: any) => ({
-        path: row.requestPath,
-        pageviews: row.pageviews,
-        visitors: row.visitors,
+      dailyTrend: (dailyData.data || []).map((row: any) => ({
+        date: row.timestamp, pageviews: row.pageviews, visitors: row.visitors,
+      })),
+      topPages: (pagesData.data || []).map((row: any) => ({
+        path: row.requestPath, pageviews: row.pageviews, visitors: row.visitors,
+      })),
+      topReferrers: (referrersData.data || []).map((row: any) => ({
+        referrer: row.referrerHostname || 'Direct', pageviews: row.pageviews, visitors: row.visitors,
+      })),
+      topCountries: (countriesData.data || []).map((row: any) => ({
+        country: row.country || 'Unknown', pageviews: row.pageviews, visitors: row.visitors,
+      })),
+      devices: (devicesData.data || []).map((row: any) => ({
+        device: row.deviceType || 'Unknown', pageviews: row.pageviews, visitors: row.visitors,
+      })),
+      browsers: (browsersData.data || []).map((row: any) => ({
+        browser: row.browserName || 'Unknown', pageviews: row.pageviews, visitors: row.visitors,
+      })),
+      operatingSystems: (osData.data || []).map((row: any) => ({
+        os: row.osName || 'Unknown', pageviews: row.pageviews, visitors: row.visitors,
       })),
     }), { headers: corsHeaders });
   } catch (err) {

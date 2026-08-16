@@ -3,6 +3,7 @@
 // file so it doesn't get tangled up with the other admin tab scripts.
 
 var _marketingRecipients = [];
+var _marketingCampaignsData = [];
 const MARKETING_EMAIL_RE = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
 function handleMarketingFileUpload(event) {
@@ -137,19 +138,27 @@ async function sendMarketingCampaign() {
 async function loadMarketingTab() {
   const tbody = document.getElementById('marketing-history-tbody');
   if (!tbody) return;
-  tbody.innerHTML = '<tr><td colspan="6" class="empty-state">Loading…</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9" class="empty-state">Loading…</td></tr>';
 
   const { data, error } = await sb.from('marketing_campaigns')
     .select('*').order('created_at', { ascending: false }).limit(50);
 
   if (error) {
-    tbody.innerHTML = `<tr><td colspan="6" class="empty-state">${escapeHtml(error.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9" class="empty-state">${escapeHtml(error.message)}</td></tr>`;
     return;
   }
   if (!data || !data.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No campaigns sent yet.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No campaigns sent yet.</td></tr>';
     return;
   }
+  _marketingCampaignsData = data;
+
+  const { data: recipRows } = await sb.from('marketing_campaign_recipients').select('campaign_id, opened_at, clicked_at');
+  const openedByCampaign = {}, clickedByCampaign = {};
+  (recipRows || []).forEach(r => {
+    if (r.opened_at) openedByCampaign[r.campaign_id] = (openedByCampaign[r.campaign_id] || 0) + 1;
+    if (r.clicked_at) clickedByCampaign[r.campaign_id] = (clickedByCampaign[r.campaign_id] || 0) + 1;
+  });
 
   tbody.innerHTML = data.map(c => `
     <tr>
@@ -158,7 +167,42 @@ async function loadMarketingTab() {
       <td>${c.sent_count}</td>
       <td>${c.skipped_unsubscribed}</td>
       <td>${(c.failed_emails || []).length}</td>
+      <td>${openedByCampaign[c.id] || 0}</td>
+      <td>${clickedByCampaign[c.id] || 0}</td>
       <td>${fmtDateTime(c.created_at)}</td>
+      <td><button class="secondary" style="padding:4px 10px;font-size:11.5px;" onclick="openMarketingDetail('${c.id}')">View</button></td>
     </tr>
   `).join('');
+}
+
+async function openMarketingDetail(campaignId) {
+  const campaign = _marketingCampaignsData.find(c => c.id === campaignId);
+  document.getElementById('marketing-detail-title').textContent = `Campaign Detail — ${campaign ? campaign.subject : ''}`;
+  const tbody = document.getElementById('marketing-detail-tbody');
+  tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Loading…</td></tr>';
+  document.getElementById('marketing-detail-overlay').classList.add('open');
+
+  const { data, error } = await sb.from('marketing_campaign_recipients')
+    .select('*').eq('campaign_id', campaignId).order('email');
+
+  if (error) {
+    tbody.innerHTML = `<tr><td colspan="3" class="empty-state">${escapeHtml(error.message)}</td></tr>`;
+    return;
+  }
+  if (!data || !data.length) {
+    tbody.innerHTML = '<tr><td colspan="3" class="empty-state">No recipients recorded for this campaign.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => `
+    <tr>
+      <td>${escapeHtml(r.email)}</td>
+      <td>${r.opened_at ? `Yes (${r.open_count}×) — ${fmtDateTime(r.opened_at)}` : '—'}</td>
+      <td>${r.clicked_at ? `Yes (${r.click_count}×) — ${fmtDateTime(r.clicked_at)}` : '—'}</td>
+    </tr>
+  `).join('');
+}
+
+function closeMarketingDetail() {
+  document.getElementById('marketing-detail-overlay').classList.remove('open');
 }

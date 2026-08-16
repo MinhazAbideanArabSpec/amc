@@ -1,12 +1,14 @@
 // send-marketing-email — admin-only. Sends a bulk marketing email (subject +
 // admin-authored HTML) to a caller-supplied recipient list (parsed client-side
 // from an uploaded Excel file), via the same Zoho SMTP credentials used for
-// alert emails. Anyone already on the unsubscribe list is silently skipped,
-// and every email gets an unsubscribe footer appended with a signed link so
-// recipients can opt out without needing a portal login.
+// alert emails. Anyone already on the unsubscribe list is silently skipped.
+// Every email gets: an unsubscribe footer, a 1x1 open-tracking pixel, and its
+// links rewritten to route through a click-tracking redirect — each signed
+// per-recipient so results can't be spoofed and no portal login is needed.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
+import { hmacHex } from '../_shared/marketing.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -16,12 +18,14 @@ const corsHeaders = {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SEND_DELAY_MS = 200; // spread sends out to avoid tripping the SMTP provider's bulk/rate limits
 
-async function hmacHex(secret: string, value: string): Promise<string> {
-  const key = await crypto.subtle.importKey(
-    'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  );
-  const sig = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(value));
-  return Array.from(new Uint8Array(sig)).map(b => b.toString(16).padStart(2, '0')).join('');
+// Rewrites every absolute http(s) link in the admin's own HTML to route
+// through the click-tracking redirect. Run before the unsubscribe footer /
+// tracking pixel are appended, so our own links are never wrapped.
+function rewriteLinksForTracking(html: string, baseUrl: string, campaignId: string, email: string, token: string): string {
+  return html.replace(/href=(["'])(https?:\/\/.*?)\1/gi, (_match, quote, url) => {
+    const redirectUrl = `${baseUrl}/functions/v1/marketing-track-click?c=${campaignId}&e=${encodeURIComponent(email)}&t=${token}&u=${encodeURIComponent(url)}`;
+    return `href=${quote}${redirectUrl}${quote}`;
+  });
 }
 
 Deno.serve(async (req) => {
@@ -71,10 +75,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'SMTP not configured yet — set it up in Settings.' }), { status: 400, headers: corsHeaders });
     }
 
-    let unsubscribeSecret = cfg.marketing_unsubscribe_secret;
-    if (!unsubscribeSecret) {
-      unsubscribeSecret = crypto.randomUUID() + crypto.randomUUID();
-      await admin.from('app_secrets').upsert({ key: 'marketing_unsubscribe_secret', value: unsubscribeSecret });
+    let marketingSecret = cfg.marketing_unsubscribe_secret;
+    if (!marketingSecret) {
+      marketingSecret = crypto.randomUUID() + crypto.randomUUID();
+      await admin.from('app_secrets').upsert({ key: 'marketing_unsubscribe_secret', value: marketingSecret });
     }
 
     // Normalize, dedupe, validate
@@ -94,6 +98,20 @@ Deno.serve(async (req) => {
     const toSend = normalized.filter(e => !unsubbedSet.has(e));
     const skippedUnsubscribed = normalized.length - toSend.length;
 
+    // Create the campaign row first — its id is embedded in every recipient's
+    // tracking pixel/click links, so it has to exist before anything sends.
+    const { data: campaign, error: campaignErr } = await admin.from('marketing_campaigns')
+      .insert({ subject, total_recipients: totalRecipients, skipped_unsubscribed: skippedUnsubscribed, created_by: user.id })
+      .select('id').single();
+    if (campaignErr || !campaign) {
+      return new Response(JSON.stringify({ error: 'Could not create campaign record: ' + (campaignErr?.message || 'unknown error') }), { status: 500, headers: corsHeaders });
+    }
+    const campaignId = campaign.id as string;
+
+    if (toSend.length) {
+      await admin.from('marketing_campaign_recipients').insert(toSend.map(email => ({ campaign_id: campaignId, email })));
+    }
+
     const client = new SMTPClient({
       connection: {
         hostname: cfg.smtp_host,
@@ -109,12 +127,16 @@ Deno.serve(async (req) => {
 
     for (const email of toSend) {
       try {
-        const token = await hmacHex(unsubscribeSecret, email);
-        const unsubUrl = `${baseUrl}/functions/v1/marketing-unsubscribe?email=${encodeURIComponent(email)}&token=${token}`;
+        const trackToken = await hmacHex(marketingSecret, `${campaignId}:${email}`);
+        const trackedHtml = rewriteLinksForTracking(html, baseUrl, campaignId, email, trackToken);
+
+        const unsubToken = await hmacHex(marketingSecret, email);
+        const unsubUrl = `${baseUrl}/functions/v1/marketing-unsubscribe?email=${encodeURIComponent(email)}&token=${unsubToken}`;
+        const pixelUrl = `${baseUrl}/functions/v1/marketing-track-open?c=${campaignId}&e=${encodeURIComponent(email)}&t=${trackToken}`;
         const footer = `<div style="margin-top:24px;padding-top:16px;border-top:1px solid #E5E7EB;font-size:11.5px;color:#94A3B8;font-family:Arial,sans-serif;">
           You received this email from ArabSpec AMC. <a href="${unsubUrl}" style="color:#94A3B8;">Unsubscribe</a>
-        </div>`;
-        const finalHtml = html.includes('</body>') ? html.replace('</body>', `${footer}</body>`) : `${html}${footer}`;
+        </div><img src="${pixelUrl}" width="1" height="1" style="display:none;" alt=""/>`;
+        const finalHtml = trackedHtml.includes('</body>') ? trackedHtml.replace('</body>', `${footer}</body>`) : `${trackedHtml}${footer}`;
 
         await client.send({
           from: cfg.smtp_username,
@@ -130,16 +152,23 @@ Deno.serve(async (req) => {
       await new Promise(r => setTimeout(r, SEND_DELAY_MS));
     }
 
-    await client.close();
+    try {
+      await client.close();
+    } catch (closeErr) {
+      // Some SMTP providers (Zoho included) tear down the connection before
+      // the client's QUIT round-trip finishes — the emails above already
+      // sent successfully, so this alone must never fail the whole request.
+      console.error('SMTP close error (non-fatal):', closeErr);
+    }
 
-    await admin.from('marketing_campaigns').insert({
-      subject,
-      total_recipients: totalRecipients,
-      sent_count: sentCount,
-      skipped_unsubscribed: skippedUnsubscribed,
-      failed_emails: failedEmails,
-      created_by: user.id,
-    });
+    try {
+      await admin.from('marketing_campaigns').update({
+        sent_count: sentCount,
+        failed_emails: failedEmails,
+      }).eq('id', campaignId);
+    } catch (logErr) {
+      console.error('Campaign history update error (non-fatal):', logErr);
+    }
 
     return new Response(JSON.stringify({
       ok: true, total: totalRecipients, sent: sentCount,

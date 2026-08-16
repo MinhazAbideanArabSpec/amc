@@ -646,6 +646,7 @@ async function viewAsCustomer(customerId) {
   // Show banner
   document.getElementById('view-as-banner').style.display = 'flex';
   document.getElementById('view-as-name').textContent = profile.name;
+  window.scrollTo(0, 0);
 
   // Load this customer's data fresh
   const cid = getCustomerId();
@@ -668,4 +669,5 @@ function exitViewAs() {
   document.getElementById('customer-view').style.display = 'none';
   document.getElementById('admin-view').style.display = 'block';
   switchAdminTab('clients');
+  window.scrollTo(0, 0);
 }

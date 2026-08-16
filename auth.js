@@ -224,7 +224,7 @@ async function afterLogin() {
 
 // ── Tab <-> URL hash, so every tab has its own link and reload/back/forward
 // land back on the tab you were viewing instead of always resetting to Overview ──
-const ADMIN_TABS    = ['overview','clients','users','contracts','assets','reports','status','subs','tags','settings','smtp','tickets'];
+const ADMIN_TABS    = ['overview','clients','users','contracts','assets','reports','status','subs','tags','settings','smtp','tickets','marketing'];
 const CUSTOMER_TABS = ['overview','reports','assets','dc','renewals','contract','hosting','tickets'];
 
 function currentHashTab() {
@@ -279,6 +279,7 @@ function switchAdminTab(tab) {
   if (tab === 'subs')      loadSubscriptions();
   if (tab === 'tags')      loadTagsTab();
   if (tab === 'tickets')   loadAdminTicketsTab();
+  if (tab === 'marketing') loadMarketingTab();
   if (tab === 'settings') {
     const input = document.getElementById('session-timeout-hours-input');
     if (input) input.value = Math.round((SESSION_MAX_AGE_MS / (60 * 60 * 1000)) * 100) / 100;

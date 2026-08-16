@@ -99,13 +99,13 @@
       display: block; font-size: 12.5px; margin-bottom: 6px; color: var(--ink-soft);
       font-weight: 500;
     }
-    input, select {
+    input, select, textarea {
       width: 100%; padding: 10px 12px; margin-bottom: 16px;
       border: 1px solid #D8D4C9; border-radius: 3px; font-size: 14px; font-family: inherit;
       color: var(--ink); background: var(--card);
       transition: border-color 0.15s;
     }
-    input:focus, select:focus { outline: none; border-color: var(--accent); }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
     button {
       padding: 10px 18px; background: var(--accent); color: #fff;
       border: none; border-radius: 3px; font-size: 13.5px; cursor: pointer; font-family: inherit;

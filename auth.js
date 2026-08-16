@@ -225,7 +225,7 @@ async function afterLogin() {
 // ── Tab <-> URL hash, so every tab has its own link and reload/back/forward
 // land back on the tab you were viewing instead of always resetting to Overview ──
 const ADMIN_TABS    = ['overview','clients','users','contracts','assets','reports','status','subs','tags','settings','smtp','tickets'];
-const CUSTOMER_TABS = ['overview','reports','assets','dc','renewals','contract','website','analytics','tickets'];
+const CUSTOMER_TABS = ['overview','reports','assets','dc','renewals','contract','hosting','tickets'];
 
 function currentHashTab() {
   return location.hash.replace('#', '');
@@ -239,14 +239,26 @@ function switchCustomerTab(tab) {
     if (panel) panel.style.display = t === tab ? 'block' : 'none';
   });
   if (currentHashTab() !== tab) history.pushState(null, '', '#' + tab);
+  document.getElementById('hosting-nav-subtabs')?.classList.toggle('expanded', tab === 'hosting');
   if (tab === 'reports')  loadCustomerReports();
   if (tab === 'renewals') loadCustomerRenewalsTab(getCustomerId());
   if (tab === 'contract') { loadCustomerSubscriptions(getCustomerId()); }
   if (tab === 'assets')   loadGroupAssets('end_user', getCustomerId());
   if (tab === 'dc')       loadGroupAssets('data_center', getCustomerId());
-  if (tab === 'website')  loadCustomerWebsiteTab(getCustomerId());
-  if (tab === 'analytics') loadCustomerAnalyticsTab(getCustomerId());
+  if (tab === 'hosting')  switchHostingSubTab('website');
   if (tab === 'tickets')  loadCustomerTicketsTab(getCustomerId());
+}
+
+// ── Hosting tab: Website / Analytics sub-sections ──
+function switchHostingSubTab(sub) {
+  document.getElementById('hosting-subtab-website')?.classList.toggle('active', sub === 'website');
+  document.getElementById('hosting-subtab-analytics')?.classList.toggle('active', sub === 'analytics');
+  const websiteEl = document.getElementById('hosting-section-website');
+  const analyticsEl = document.getElementById('hosting-section-analytics');
+  if (websiteEl) websiteEl.style.display = sub === 'website' ? 'block' : 'none';
+  if (analyticsEl) analyticsEl.style.display = sub === 'analytics' ? 'block' : 'none';
+  if (sub === 'website') loadCustomerWebsiteTab(getCustomerId());
+  if (sub === 'analytics') loadCustomerAnalyticsTab(getCustomerId());
 }
 
 // ── Admin: switch tabs ──

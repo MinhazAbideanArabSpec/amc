@@ -149,7 +149,6 @@
     .topbar .who a { color: #C9D4DE; text-decoration: none; border-bottom: 1px solid rgba(255,255,255,0.25); }
     .topbar .who a:hover { color: #fff; }
     .content { padding: 0; }
-    #view-as-banner { margin: 16px 28px 0; }
 
     /* ── Sidebar navigation + content shell ── */
     .view-shell { display: flex; align-items: stretch; width: 100%; }

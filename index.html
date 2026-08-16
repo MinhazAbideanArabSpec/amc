@@ -112,19 +112,6 @@
   </div>
 
   <div class="content">
-    <!-- View As Banner (admin only) -->
-    <div id="view-as-banner" style="display:none;align-items:center;justify-content:space-between;
-      background:#1C2F5E;color:#fff;padding:10px 20px;border-radius:8px;margin-bottom:16px;gap:12px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-        <span style="font-size:13px;">Viewing as customer: <strong id="view-as-name"></strong></span>
-      </div>
-      <button onclick="exitViewAs()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);
-        color:#fff;padding:5px 14px;font-size:12.5px;border-radius:5px;cursor:pointer;">
-        ← Exit to Admin
-      </button>
-    </div>
-
     <!-- ADMIN VIEW -->
     <div id="admin-view" style="display:none;">
      <div class="view-shell">
@@ -615,6 +602,19 @@
       </div>
 
       <div class="tab-content">
+      <!-- View As Banner (admin only) -->
+      <div id="view-as-banner" style="display:none;align-items:center;justify-content:space-between;
+        background:#1C2F5E;color:#fff;padding:10px 20px;border-radius:8px;margin-bottom:16px;gap:12px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+          <span style="font-size:13px;">Viewing as customer: <strong id="view-as-name"></strong></span>
+        </div>
+        <button onclick="exitViewAs()" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);
+          color:#fff;padding:5px 14px;font-size:12.5px;border-radius:5px;cursor:pointer;">
+          ← Exit to Admin
+        </button>
+      </div>
+
       <!-- Overview panel -->
       <div id="cust-panel-overview">
 

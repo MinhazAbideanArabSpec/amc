@@ -17,6 +17,14 @@ const corsHeaders = {
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const SEND_DELAY_MS = 200; // spread sends out to avoid tripping the SMTP provider's bulk/rate limits
+const SEND_TIMEOUT_MS = 20000; // bound each individual send so one stuck connection can't hang the whole request
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)),
+  ]);
+}
 
 // Rewrites every absolute http(s) link in the admin's own HTML to route
 // through the click-tracking redirect. Run before the unsubscribe footer /
@@ -112,14 +120,12 @@ Deno.serve(async (req) => {
       await admin.from('marketing_campaign_recipients').insert(toSend.map(email => ({ campaign_id: campaignId, email })));
     }
 
-    const client = new SMTPClient({
-      connection: {
-        hostname: cfg.smtp_host,
-        port: parseInt(cfg.smtp_port || '465'),
-        tls: cfg.smtp_secure === 'true',
-        auth: { username: cfg.smtp_username, password: cfg.smtp_password },
-      },
-    });
+    const smtpConn = {
+      hostname: cfg.smtp_host,
+      port: parseInt(cfg.smtp_port || '465'),
+      tls: cfg.smtp_secure === 'true',
+      auth: { username: cfg.smtp_username, password: cfg.smtp_password },
+    };
 
     const baseUrl = Deno.env.get('SUPABASE_URL')!;
     let sentCount = 0;
@@ -138,36 +144,46 @@ Deno.serve(async (req) => {
         </div><img src="${pixelUrl}" width="1" height="1" style="display:none;" alt=""/>`;
         const finalHtml = trackedHtml.includes('</body>') ? trackedHtml.replace('</body>', `${footer}</body>`) : `${trackedHtml}${footer}`;
 
-        await client.send({
-          from: cfg.smtp_username,
-          to: [email],
-          subject,
-          content: 'This email requires an HTML-capable email client to view.',
-          html: finalHtml,
-        });
-        sentCount++;
+        // A fresh connection per recipient — bounded by its own timeout — so a
+        // single stuck TLS handshake or unresponsive server can't hang every
+        // send behind it (denomailer normally shares one connection across
+        // sends, which turns one bad connection into a full request hang).
+        const client = new SMTPClient({ connection: smtpConn });
+        try {
+          await withTimeout(client.send({
+            from: cfg.smtp_username,
+            to: [email],
+            subject,
+            content: 'This email requires an HTML-capable email client to view.',
+            html: finalHtml,
+          }), SEND_TIMEOUT_MS, 'SMTP send');
+          sentCount++;
+        } finally {
+          try {
+            await withTimeout(client.close(), 5000, 'SMTP close');
+          } catch (closeErr) {
+            // Some SMTP providers (Zoho included) tear down the connection before
+            // the client's QUIT round-trip finishes — a send that already
+            // succeeded above must never be reported as failed because of this.
+            console.error('SMTP close error (non-fatal):', closeErr);
+          }
+        }
       } catch (err) {
         failedEmails.push({ email, error: String(err) });
       }
+
+      // Write progress after every recipient so the admin UI can poll and
+      // show a live "sent X of Y" bar instead of a single opaque wait.
+      try {
+        await admin.from('marketing_campaigns').update({
+          sent_count: sentCount,
+          failed_emails: failedEmails,
+        }).eq('id', campaignId);
+      } catch (progressErr) {
+        console.error('Campaign progress update error (non-fatal):', progressErr);
+      }
+
       await new Promise(r => setTimeout(r, SEND_DELAY_MS));
-    }
-
-    try {
-      await client.close();
-    } catch (closeErr) {
-      // Some SMTP providers (Zoho included) tear down the connection before
-      // the client's QUIT round-trip finishes — the emails above already
-      // sent successfully, so this alone must never fail the whole request.
-      console.error('SMTP close error (non-fatal):', closeErr);
-    }
-
-    try {
-      await admin.from('marketing_campaigns').update({
-        sent_count: sentCount,
-        failed_emails: failedEmails,
-      }).eq('id', campaignId);
-    } catch (logErr) {
-      console.error('Campaign history update error (non-fatal):', logErr);
     }
 
     return new Response(JSON.stringify({

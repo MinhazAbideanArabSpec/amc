@@ -1466,6 +1466,20 @@
 </div>
 
 <!-- MARKETING EMAIL PREVIEW MODAL -->
+<div class="modal-overlay" id="marketing-progress-overlay">
+  <div class="modal-box" style="max-width:380px;text-align:center;">
+    <h2>Sending Campaign…</h2>
+    <div style="margin:20px 0 8px;background:#E5E7EB;border-radius:20px;height:10px;overflow:hidden;">
+      <div id="marketing-progress-bar" style="background:var(--accent);height:100%;width:0%;transition:width 0.3s;"></div>
+    </div>
+    <div id="marketing-progress-text" style="font-size:13px;color:#64748B;margin-bottom:6px;">Starting…</div>
+    <div id="marketing-progress-note" style="font-size:11.5px;color:#94A3B8;min-height:16px;"></div>
+    <div class="modal-actions" style="justify-content:center;margin-top:16px;">
+      <button class="secondary" onclick="hideMarketingProgress()">Hide</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="marketing-preview-overlay">
   <div class="modal-box wide" style="max-width:720px;max-height:90vh;overflow-y:auto;">
     <h2>Email Preview</h2>

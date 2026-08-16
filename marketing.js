@@ -82,6 +82,59 @@ function closeMarketingPreview() {
   document.getElementById('marketing-preview-overlay').classList.remove('open');
 }
 
+var _marketingPolling = false;
+
+function openMarketingProgress(total) {
+  document.getElementById('marketing-progress-bar').style.width = '0%';
+  document.getElementById('marketing-progress-text').textContent = `Starting… (0 of ${total})`;
+  document.getElementById('marketing-progress-note').textContent = '';
+  document.getElementById('marketing-progress-overlay').classList.add('open');
+}
+
+function updateMarketingProgress(sent, total) {
+  const bar = document.getElementById('marketing-progress-bar');
+  const text = document.getElementById('marketing-progress-text');
+  if (!bar || !text) return;
+  const pct = total ? Math.min(100, Math.round((sent / total) * 100)) : 0;
+  bar.style.width = pct + '%';
+  text.textContent = `Sent ${sent} of ${total}`;
+}
+
+function closeMarketingProgress() {
+  document.getElementById('marketing-progress-overlay').classList.remove('open');
+}
+
+function hideMarketingProgress() {
+  closeMarketingProgress();
+}
+
+// Polls the campaign row this send just created so the progress modal has
+// live numbers, since sb.functions.invoke() only resolves once — after
+// everything is done — with no partial updates along the way otherwise.
+async function pollMarketingProgress(subject, expectedTotal) {
+  _marketingPolling = true;
+
+  let campaignId = null;
+  const findStart = Date.now();
+  while (_marketingPolling && !campaignId && Date.now() - findStart < 15000) {
+    const { data } = await sb.from('marketing_campaigns')
+      .select('id').eq('subject', subject).order('created_at', { ascending: false }).limit(1);
+    if (data && data[0]) campaignId = data[0].id;
+    else await new Promise(r => setTimeout(r, 500));
+  }
+
+  while (_marketingPolling && campaignId) {
+    const { data } = await sb.from('marketing_campaigns')
+      .select('sent_count, total_recipients').eq('id', campaignId).single();
+    if (data) {
+      const total = data.total_recipients || expectedTotal;
+      updateMarketingProgress(data.sent_count, total);
+      if (data.sent_count >= total) break;
+    }
+    await new Promise(r => setTimeout(r, 1200));
+  }
+}
+
 async function sendMarketingCampaign() {
   const subject = document.getElementById('marketing-subject-input').value.trim();
   const html = document.getElementById('marketing-html-input').value.trim();
@@ -105,22 +158,48 @@ async function sendMarketingCampaign() {
     return;
   }
 
-  if (!confirm(`Send this email to ${_marketingRecipients.length} recipient(s)? This cannot be undone.`)) return;
+  const recipientCount = _marketingRecipients.length;
+  if (!confirm(`Send this email to ${recipientCount} recipient(s)? This cannot be undone.`)) return;
 
   btn.disabled = true;
   btn.textContent = 'Sending…';
+  openMarketingProgress(recipientCount);
 
-  const { data, error } = await sb.functions.invoke('send-marketing-email', {
+  const sendPromise = sb.functions.invoke('send-marketing-email', {
     body: { subject, html, recipients: _marketingRecipients },
   });
+  pollMarketingProgress(subject, recipientCount);
+
+  // The request itself has no hard cap, so give the UI a generous ceiling
+  // instead of the button staying stuck on "Sending…" with no way out —
+  // the send may well still finish server-side even if this fires.
+  const SAFETY_MS = 6 * 60 * 1000;
+  const TIMED_OUT = Symbol('timed-out');
+  const result = await Promise.race([
+    sendPromise,
+    new Promise(resolve => setTimeout(() => resolve(TIMED_OUT), SAFETY_MS)),
+  ]);
 
   btn.disabled = false;
   btn.textContent = 'Send Campaign';
   statusEl.style.display = 'block';
 
+  if (result === TIMED_OUT) {
+    document.getElementById('marketing-progress-note').textContent = 'Still running — this may complete in the background.';
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'This is taking longer than expected. It may still finish — check Campaign History in a bit.';
+    loadMarketingTab();
+    return;
+  }
+
+  _marketingPolling = false;
+  closeMarketingProgress();
+  const { data, error } = result;
+
   if (error || data?.error) {
     statusEl.style.color = 'var(--rust)';
     statusEl.textContent = 'Failed to send: ' + (data?.error || error.message);
+    loadMarketingTab();
     return;
   }
 

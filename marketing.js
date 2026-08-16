@@ -52,10 +52,33 @@ function clearMarketingRecipients() {
   renderMarketingRecipients();
 }
 
-function updateMarketingPreview() {
-  const html = document.getElementById('marketing-html-input').value;
-  const frame = document.getElementById('marketing-preview-frame');
-  if (frame) frame.srcdoc = html;
+// Mirrors the footer send-marketing-email appends server-side, so the
+// preview shows exactly what recipients will see. The real link is unique
+// per recipient (signed with their email) and only exists once the email
+// is actually sent, so the preview uses a placeholder href instead.
+function marketingFooterHtml() {
+  return `<div style="margin-top:24px;padding-top:16px;border-top:1px solid #E5E7EB;font-size:11.5px;color:#94A3B8;font-family:Arial,sans-serif;">
+    You received this email from ArabSpec AMC. <a href="#" style="color:#94A3B8;">Unsubscribe</a>
+  </div>`;
+}
+
+function openMarketingPreview() {
+  const subject = document.getElementById('marketing-subject-input').value.trim();
+  const html = document.getElementById('marketing-html-input').value.trim();
+  if (!html) {
+    alert('Paste the email HTML first.');
+    return;
+  }
+  const footer = marketingFooterHtml();
+  const finalHtml = html.includes('</body>') ? html.replace('</body>', `${footer}</body>`) : `${html}${footer}`;
+
+  document.getElementById('marketing-preview-subject').textContent = subject || '(no subject)';
+  document.getElementById('marketing-preview-frame').srcdoc = finalHtml;
+  document.getElementById('marketing-preview-overlay').classList.add('open');
+}
+
+function closeMarketingPreview() {
+  document.getElementById('marketing-preview-overlay').classList.remove('open');
 }
 
 async function sendMarketingCampaign() {
@@ -107,7 +130,6 @@ async function sendMarketingCampaign() {
 
   document.getElementById('marketing-subject-input').value = '';
   document.getElementById('marketing-html-input').value = '';
-  updateMarketingPreview();
   clearMarketingRecipients();
   loadMarketingTab();
 }

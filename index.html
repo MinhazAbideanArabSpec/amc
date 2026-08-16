@@ -579,12 +579,12 @@
           <input type="text" id="marketing-subject-input" placeholder="Your email subject line"/>
 
           <label>Email Body (HTML)</label>
-          <textarea id="marketing-html-input" rows="12" style="font-family:monospace;font-size:12.5px;" placeholder="Paste your email HTML here…" oninput="updateMarketingPreview()"></textarea>
+          <textarea id="marketing-html-input" rows="12" style="font-family:monospace;font-size:12.5px;" placeholder="Paste your email HTML here…"></textarea>
 
-          <label>Preview</label>
-          <iframe id="marketing-preview-frame" sandbox="" style="width:100%;height:280px;border:1px solid var(--line);border-radius:6px;background:#fff;margin-bottom:16px;"></iframe>
-
-          <button onclick="sendMarketingCampaign()" id="marketing-send-btn">Send Campaign</button>
+          <div style="display:flex;gap:10px;">
+            <button class="secondary" onclick="openMarketingPreview()" id="marketing-preview-btn">Preview Email</button>
+            <button onclick="sendMarketingCampaign()" id="marketing-send-btn">Send Campaign</button>
+          </div>
           <div id="marketing-send-status" style="font-size:12.5px;margin-top:10px;display:none;"></div>
         </div>
 
@@ -1461,6 +1461,18 @@
     <div id="ticket-detail-modal-body" style="margin-top:14px;max-height:65vh;overflow-y:auto;"></div>
     <div class="modal-actions">
       <button class="secondary" onclick="closeTicketDetailModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- MARKETING EMAIL PREVIEW MODAL -->
+<div class="modal-overlay" id="marketing-preview-overlay">
+  <div class="modal-box wide" style="max-width:720px;max-height:90vh;overflow-y:auto;">
+    <h2>Email Preview</h2>
+    <div style="font-size:13px;margin-bottom:12px;"><strong>Subject:</strong> <span id="marketing-preview-subject"></span></div>
+    <iframe id="marketing-preview-frame" sandbox="" style="width:100%;height:440px;border:1px solid var(--line);border-radius:6px;background:#fff;"></iframe>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeMarketingPreview()">Close</button>
     </div>
   </div>
 </div>

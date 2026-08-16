@@ -21,6 +21,7 @@ import { hmacHex } from '../_shared/marketing.ts';
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Content-Type': 'application/json',
 };
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -192,18 +193,26 @@ Deno.serve(async (req) => {
 
       // Update the shared campaign row: read-then-write, since each
       // recipient is its own isolated request now.
-      const { data: current } = await admin.from('marketing_campaigns')
+      let progressWriteError: string | null = null;
+      const { data: current, error: readErr } = await admin.from('marketing_campaigns')
         .select('sent_count, failed_emails').eq('id', campaignId).single();
-      if (current) {
+      if (readErr) {
+        progressWriteError = 'read failed: ' + readErr.message;
+        console.error('sendOne: could not read campaign row', campaignId, readErr);
+      } else if (current) {
         const failedEmails = (current.failed_emails || []) as { email: string; error: string }[];
         if (sendError) failedEmails.push({ email, error: sendError });
-        await admin.from('marketing_campaigns').update({
+        const { error: writeErr } = await admin.from('marketing_campaigns').update({
           sent_count: sendError ? current.sent_count : (current.sent_count || 0) + 1,
           failed_emails: failedEmails,
         }).eq('id', campaignId);
+        if (writeErr) {
+          progressWriteError = 'write failed: ' + writeErr.message;
+          console.error('sendOne: could not write campaign row', campaignId, writeErr);
+        }
       }
 
-      return new Response(JSON.stringify({ ok: !sendError, error: sendError }), { headers: corsHeaders });
+      return new Response(JSON.stringify({ ok: !sendError, error: sendError, progressWriteError }), { headers: corsHeaders });
     }
 
     return new Response(JSON.stringify({ error: `Unknown action: ${action}` }), { status: 400, headers: corsHeaders });

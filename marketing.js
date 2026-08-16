@@ -179,6 +179,7 @@ async function sendMarketingCampaign() {
     const { data, error } = await sb.functions.invoke('send-marketing-email', {
       body: { action: 'sendOne', campaignId, email, subject, html },
     });
+    if (data?.progressWriteError) console.error('sendOne progress write failed for', email, ':', data.progressWriteError);
     if (error || !data?.ok) failedCount++;
     else sentCount++;
     updateMarketingProgress(sentCount + failedCount, toSend.length);

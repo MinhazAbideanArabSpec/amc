@@ -280,10 +280,11 @@ function switchAdminTab(tab) {
   if (tab === 'tags')      loadTagsTab();
   if (tab === 'tickets')   loadAdminTicketsTab();
   if (tab === 'marketing') loadMarketingTab();
-  if (tab === 'smtp')      loadAlertThresholds();
+  if (tab === 'smtp') { loadAlertThresholds(); loadSettingsStatus(); }
   if (tab === 'settings') {
     const input = document.getElementById('session-timeout-hours-input');
     if (input) input.value = Math.round((SESSION_MAX_AGE_MS / (60 * 60 * 1000)) * 100) / 100;
+    loadSettingsStatus();
   }
 }
 

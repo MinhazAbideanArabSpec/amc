@@ -41,17 +41,25 @@ Deno.serve(async (req) => {
     }
 
     const { host, port, username, password, secure } = await req.json();
-    if (!host || !port || !username || !password) {
+    if (!host || !port || !username) {
       return new Response(JSON.stringify({ error: 'Missing SMTP fields' }), { status: 400, headers: corsHeaders });
+    }
+    if (!password) {
+      const { data: existing } = await admin.from('app_secrets').select('value').eq('key', 'smtp_password').single();
+      if (!existing?.value) {
+        return new Response(JSON.stringify({ error: 'A password is required the first time SMTP is configured.' }), { status: 400, headers: corsHeaders });
+      }
     }
 
     const entries: [string, string][] = [
       ['smtp_host', String(host)],
       ['smtp_port', String(port)],
       ['smtp_username', String(username)],
-      ['smtp_password', String(password)],
       ['smtp_secure', String(!!secure)],
     ];
+    // Only overwrite the saved password if a new one was actually entered —
+    // leaving the field blank means "keep what's already there."
+    if (password) entries.push(['smtp_password', String(password)]);
     for (const [key, value] of entries) {
       const { error } = await admin.from('app_secrets').upsert({ key, value, updated_at: new Date().toISOString() });
       if (error) throw error;

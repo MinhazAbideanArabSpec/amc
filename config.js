@@ -16,6 +16,20 @@ function getCustomerId() {
   return myProfile?.customer_id || myProfile?.id;
 }
 
+// sb.functions.invoke()'s error.message is always the same generic string
+// on any non-2xx response — the real message our function returned lives in
+// error.context (the raw Response), which the SDK doesn't surface itself.
+async function extractFunctionErrorMessage(error, data) {
+  if (data?.error) return data.error;
+  if (error?.context && typeof error.context.json === 'function') {
+    try {
+      const body = await error.context.clone().json();
+      if (body?.error) return body.error;
+    } catch (_e) { /* body wasn't JSON — fall through */ }
+  }
+  return error?.message || 'Unknown error';
+}
+
 // PWA install support — service workers require a secure context
 // (https, or localhost), so this silently no-ops on http/file:// during
 // local testing and only actually registers once deployed.
@@ -83,10 +97,10 @@ async function saveSmtpSettings() {
   const statusEl = document.getElementById('smtp-save-status');
   const btn      = document.getElementById('smtp-save-btn');
 
-  if (!host || !port || !username || !password) {
+  if (!host || !port || !username) {
     statusEl.style.display = 'block';
     statusEl.style.color = 'var(--rust)';
-    statusEl.textContent = 'Fill in host, port, username, and password.';
+    statusEl.textContent = 'Fill in host, port, and username.';
     return;
   }
 
@@ -104,11 +118,12 @@ async function saveSmtpSettings() {
   statusEl.style.display = 'block';
   if (error || data?.error) {
     statusEl.style.color = 'var(--rust)';
-    statusEl.textContent = 'Failed to save: ' + (data?.error || error.message);
+    statusEl.textContent = 'Failed to save: ' + await extractFunctionErrorMessage(error, data);
   } else {
     statusEl.style.color = 'var(--sage)';
     statusEl.textContent = 'SMTP settings saved. Alerts will use these credentials starting with the next scheduled run.';
     document.getElementById('smtp-password-input').value = '';
+    document.getElementById('smtp-password-status-note').style.display = 'block';
   }
 }
 
@@ -151,6 +166,30 @@ async function loadAlertThresholds() {
   if (!input) return;
   const { data } = await sb.from('alert_settings').select('threshold_days').eq('id', 1).single();
   if (data?.threshold_days) input.value = data.threshold_days.join(', ');
+}
+
+// Populates non-secret SMTP fields and shows "already saved" indicators for
+// everything else, so this tab doesn't look empty every time it's opened
+// even though credentials were saved long ago (app_secrets is write-only —
+// this is the only way the client learns what's already configured).
+async function loadSettingsStatus() {
+  const { data, error } = await sb.functions.invoke('get-settings-status');
+  if (error || data?.error || !data?.smtp) return;
+
+  const smtpHost = document.getElementById('smtp-host-input');
+  if (smtpHost) {
+    smtpHost.value = data.smtp.host || '';
+    document.getElementById('smtp-port-input').value = data.smtp.port || '';
+    document.getElementById('smtp-username-input').value = data.smtp.username || '';
+    document.getElementById('smtp-secure-input').checked = !!data.smtp.secure;
+    document.getElementById('smtp-password-status-note').style.display = data.smtp.hasPassword ? 'block' : 'none';
+  }
+
+  const githubNote = document.getElementById('github-token-status-note');
+  if (githubNote) githubNote.style.display = data.hasGithubToken ? 'block' : 'none';
+
+  const vercelNote = document.getElementById('vercel-token-status-note');
+  if (vercelNote) vercelNote.style.display = data.hasVercelToken ? 'block' : 'none';
 }
 
 async function saveAlertThresholds() {

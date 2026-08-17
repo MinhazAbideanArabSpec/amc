@@ -98,20 +98,6 @@ function updateMarketingProgress(sent, total) {
   text.textContent = `Sent ${sent} of ${total}`;
 }
 
-// sb.functions.invoke()'s error.message is always the same generic string
-// on any non-2xx response — the real message our function returned lives in
-// error.context (the raw Response), which the SDK doesn't surface itself.
-async function extractFunctionErrorMessage(error, data) {
-  if (data?.error) return data.error;
-  if (error?.context && typeof error.context.json === 'function') {
-    try {
-      const body = await error.context.clone().json();
-      if (body?.error) return body.error;
-    } catch (_e) { /* body wasn't JSON — fall through */ }
-  }
-  return error?.message || 'Unknown error';
-}
-
 function closeMarketingProgress() {
   document.getElementById('marketing-progress-overlay').classList.remove('open');
 }

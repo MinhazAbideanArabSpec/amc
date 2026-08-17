@@ -224,7 +224,7 @@
       flex: 0 0 216px; width: 216px;
       display: flex; flex-direction: column; gap: 2px;
       background: var(--ink); border-radius: 0; padding: 20px 12px;
-      position: sticky; top: 0; align-self: flex-start; min-height: 100vh;
+      position: sticky; top: 0; align-self: flex-start; min-height: calc(100vh - 66px);
     }
     .nav-tab {
       display: flex; align-items: center; gap: 11px; width: 100%; text-align: left;

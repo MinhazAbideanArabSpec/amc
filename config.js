@@ -144,6 +144,53 @@ async function sendTestSmtpEmail() {
   }
 }
 
+// Alert thresholds aren't sensitive, so they're read/written directly
+// (admin RLS on alert_settings) rather than through an Edge Function.
+async function loadAlertThresholds() {
+  const input = document.getElementById('alert-thresholds-input');
+  if (!input) return;
+  const { data } = await sb.from('alert_settings').select('threshold_days').eq('id', 1).single();
+  if (data?.threshold_days) input.value = data.threshold_days.join(', ');
+}
+
+async function saveAlertThresholds() {
+  const input = document.getElementById('alert-thresholds-input');
+  const statusEl = document.getElementById('alert-thresholds-status');
+  const btn = document.getElementById('alert-thresholds-save-btn');
+  statusEl.style.display = 'none';
+
+  const days = input.value.split(',')
+    .map(s => parseInt(s.trim(), 10))
+    .filter(n => Number.isInteger(n) && n > 0);
+  const uniqueDays = Array.from(new Set(days)).sort((a, b) => b - a);
+
+  if (!uniqueDays.length) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Enter at least one positive whole number of days, comma-separated.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const { error } = await sb.from('alert_settings')
+    .update({ threshold_days: uniqueDays, updated_at: new Date().toISOString() }).eq('id', 1);
+
+  btn.disabled = false;
+  btn.textContent = 'Save';
+  statusEl.style.display = 'block';
+
+  if (error) {
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Failed to save: ' + error.message;
+  } else {
+    statusEl.style.color = 'var(--sage)';
+    statusEl.textContent = `Saved. Alerts will fire at ${uniqueDays.join(', ')} day(s) before expiry starting with the next scheduled run.`;
+    input.value = uniqueDays.join(', ');
+  }
+}
+
 async function saveGithubToken() {
   const token = document.getElementById('github-token-input').value.trim();
   const statusEl = document.getElementById('github-token-status');

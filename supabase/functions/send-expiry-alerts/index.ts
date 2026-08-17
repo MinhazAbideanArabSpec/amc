@@ -1,14 +1,16 @@
 // send-expiry-alerts — runs on a daily cron schedule (see supabase/SETUP.md).
-// Checks contracts and software renewals for 60/30/14/7-day expiry thresholds
-// and emails the affected customer and their staff accounts directly (To),
-// with all admins copied privately (Bcc) so recipients never see each
-// other's addresses, via the Zoho SMTP credentials saved through Settings.
+// Checks contracts and software renewals against admin-configurable expiry
+// thresholds (Settings → Email Alerts, alert_settings table — defaults to
+// 60/30/14/7 days) and emails the affected customer and their staff accounts
+// directly (To), with all admins copied privately (Bcc) so recipients never
+// see each other's addresses, via the Zoho SMTP credentials saved through
+// Settings.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SMTPClient } from 'https://deno.land/x/denomailer@1.6.0/mod.ts';
 import { renderAlertEmailHtml, renderAlertEmailText, renderAlertSubject } from '../_shared/emailTemplate.ts';
 
-const THRESHOLDS = [60, 30, 14, 7];
+const DEFAULT_THRESHOLDS = [60, 30, 14, 7];
 
 function daysUntil(dateStr: string): number {
   const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -43,6 +45,11 @@ Deno.serve(async (_req) => {
   if (!cfg.smtp_host || !cfg.smtp_username || !cfg.smtp_password) {
     return new Response(JSON.stringify({ error: 'SMTP not configured yet — set it up in Settings.' }), { status: 400 });
   }
+
+  const { data: alertSettings } = await admin.from('alert_settings').select('threshold_days').eq('id', 1).single();
+  const THRESHOLDS = (alertSettings?.threshold_days && alertSettings.threshold_days.length)
+    ? alertSettings.threshold_days
+    : DEFAULT_THRESHOLDS;
 
   const client = new SMTPClient({
     connection: {

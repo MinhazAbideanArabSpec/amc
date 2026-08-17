@@ -966,8 +966,8 @@ async function loadCustomerWebsiteTab(customerId) {
     </div>
 
     <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
-      <label>Version History</label>
-      <div style="font-size:12px;color:#94A3B8;margin-bottom:10px;">Every change made to your site, whether published from here or another way.</div>
+      <label>Latest Version</label>
+      <div style="font-size:12px;color:#94A3B8;margin-bottom:10px;">The most recent change made to your site, whether published from here or another way.</div>
       <div id="website-history-list"><div class="empty-state">Loading…</div></div>
     </div>
   `;
@@ -1096,7 +1096,7 @@ async function loadWebsiteHistory() {
     return;
   }
 
-  const commits = result.commits || [];
+  const commits = (result.commits || []).slice(0, 1); // most recent version only
   if (!commits.length) {
     listEl.innerHTML = '<div class="empty-state">No changes recorded yet.</div>';
     return;

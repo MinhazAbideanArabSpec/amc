@@ -1,7 +1,7 @@
 // pdf.js — ArabSpec AMC Portal PDF Generation
 
-const PDF_ACCENT = [59, 87, 115];
-const PDF_DARK   = [28, 33, 39];
+const PDF_ACCENT = [2, 84, 48];
+const PDF_DARK   = [28, 38, 34];
 const PDF_MUTED  = [120, 130, 145];
 const PDF_LINE   = [220, 222, 226];
 const PDF_GREEN  = [39, 174, 96];

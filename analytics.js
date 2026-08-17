@@ -88,7 +88,7 @@ function foldToEight(rows) {
 }
 
 const TOOLTIP_STYLE = {
-  backgroundColor: '#1C2127',
+  backgroundColor: '#1C2622',
   titleColor: '#fff',
   bodyColor: '#E5E7EB',
   padding: 10,

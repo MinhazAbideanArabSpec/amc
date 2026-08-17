@@ -55,7 +55,7 @@
     .login-brand {
       flex: 1 1 46%; position: relative; overflow: hidden;
       background: var(--ink); color: #fff;
-      padding: 48px 44px; display: flex; flex-direction: column; justify-content: center;
+      padding: 48px 44px; display: flex; flex-direction: column; justify-content: flex-start;
     }
     .login-brand::before, .login-brand::after {
       content: ''; position: absolute; border-radius: 50%; filter: blur(70px); z-index: 0;
@@ -68,7 +68,7 @@
       background: #fff; border-radius: 8px; padding: 6px 10px; margin-bottom: 28px;
     }
     .login-brand h1 { font-size: 26px; color: #fff; margin-bottom: 6px; letter-spacing: -0.01em; }
-    .login-brand-suffix { font-size: 15px; font-weight: 500; color: #C9D4DE; letter-spacing: 0; margin-inline-start: 8px; }
+    .login-brand-suffix { display: block; font-size: 15px; font-weight: 500; color: #C9D4DE; letter-spacing: 0; }
     .login-brand .login-sub {
       font-size: 12.5px; color: #C9D4DE; margin-bottom: 36px;
       text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500;
@@ -83,7 +83,7 @@
     /* Form panel (right) */
     .login-form-panel {
       flex: 1 1 54%; background: var(--card);
-      display: flex; align-items: center; justify-content: center; padding: 48px 40px;
+      display: flex; align-items: flex-start; justify-content: center; padding: 48px 40px;
     }
     .login-box { width: 100%; max-width: 340px; }
     .login-form-logo-wrap { text-align: center; margin-bottom: 32px; }

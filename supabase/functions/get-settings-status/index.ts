@@ -1,8 +1,9 @@
-// get-settings-status — admin-only. Reports which admin-configured integrations
-// are already saved, without ever exposing secret values (passwords/tokens
-// stay write-only). app_secrets has zero client-facing RLS policies, so this
-// is the only way the Settings UI can show "already configured" instead of
-// looking empty every time the page loads.
+// get-settings-status — admin-only. Reports non-secret config values as-is,
+// and secret values as a character COUNT only (never the value itself), so
+// the client can pre-fill masked fields with the right number of dots
+// instead of looking empty every time the page loads. app_secrets has zero
+// client-facing RLS policies, so this is the only way the Settings UI can
+// know any of this.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
@@ -51,10 +52,10 @@ Deno.serve(async (req) => {
         port: cfg.smtp_port || '',
         username: cfg.smtp_username || '',
         secure: cfg.smtp_secure === 'true',
-        hasPassword: !!cfg.smtp_password,
+        passwordLength: (cfg.smtp_password || '').length,
       },
-      hasGithubToken: !!cfg.github_token,
-      hasVercelToken: !!cfg.vercel_token,
+      githubTokenLength: (cfg.github_token || '').length,
+      vercelTokenLength: (cfg.vercel_token || '').length,
     }), { headers: corsHeaders });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });

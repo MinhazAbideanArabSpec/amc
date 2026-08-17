@@ -92,7 +92,7 @@ async function saveSmtpSettings() {
   const host     = document.getElementById('smtp-host-input').value.trim();
   const port     = document.getElementById('smtp-port-input').value.trim();
   const username = document.getElementById('smtp-username-input').value.trim();
-  const password = document.getElementById('smtp-password-input').value;
+  const password = maskedFieldValue(document.getElementById('smtp-password-input'));
   const secure   = document.getElementById('smtp-secure-input').checked;
   const statusEl = document.getElementById('smtp-save-status');
   const btn      = document.getElementById('smtp-save-btn');
@@ -122,8 +122,9 @@ async function saveSmtpSettings() {
   } else {
     statusEl.style.color = 'var(--sage)';
     statusEl.textContent = 'SMTP settings saved. Alerts will use these credentials starting with the next scheduled run.';
-    document.getElementById('smtp-password-input').value = '';
-    document.getElementById('smtp-password-status-note').style.display = 'block';
+    const pwInput = document.getElementById('smtp-password-input');
+    if (password) maskField(pwInput, password.length);
+    else pwInput.value = pwInput.dataset.placeholder || '';
   }
 }
 
@@ -168,10 +169,40 @@ async function loadAlertThresholds() {
   if (data?.threshold_days) input.value = data.threshold_days.join(', ');
 }
 
-// Populates non-secret SMTP fields and shows "already saved" indicators for
-// everything else, so this tab doesn't look empty every time it's opened
-// even though credentials were saved long ago (app_secrets is write-only —
-// this is the only way the client learns what's already configured).
+// Fills a masked (type=password) field with a dot per character of the
+// real saved value — never the value itself — so it looks populated
+// instead of empty. The dot string is remembered on the element so saves
+// can tell "left untouched" apart from "typed something new."
+function maskField(input, length) {
+  if (!input) return;
+  if (length > 0) {
+    const dots = '•'.repeat(length);
+    input.value = dots;
+    input.dataset.placeholder = dots;
+  } else {
+    input.value = '';
+    delete input.dataset.placeholder;
+  }
+}
+
+// Wired to onfocus on every masked field: clicking in to edit clears the
+// placeholder dots so typing starts from a clean slate. Clicking away
+// without typing leaves it blank, which every save endpoint treats as
+// "keep the existing value" — never as "clear it."
+function clearMaskedFieldOnFocus(input) {
+  if (input.value === input.dataset.placeholder) input.value = '';
+}
+
+// Returns '' (meaning "unchanged, keep existing") if the field still holds
+// its untouched placeholder dots, otherwise the real value the admin typed.
+function maskedFieldValue(input) {
+  return input.value === input.dataset.placeholder ? '' : input.value;
+}
+
+// Populates every settings field with its real (non-secret) or dot-masked
+// (secret) saved value, so this tab doesn't look empty every time it's
+// opened even though credentials were saved long ago (app_secrets is
+// write-only — this is the only way the client learns what's already there).
 async function loadSettingsStatus() {
   const { data, error } = await sb.functions.invoke('get-settings-status');
   if (error || data?.error || !data?.smtp) return;
@@ -182,14 +213,11 @@ async function loadSettingsStatus() {
     document.getElementById('smtp-port-input').value = data.smtp.port || '';
     document.getElementById('smtp-username-input').value = data.smtp.username || '';
     document.getElementById('smtp-secure-input').checked = !!data.smtp.secure;
-    document.getElementById('smtp-password-status-note').style.display = data.smtp.hasPassword ? 'block' : 'none';
+    maskField(document.getElementById('smtp-password-input'), data.smtp.passwordLength);
   }
 
-  const githubNote = document.getElementById('github-token-status-note');
-  if (githubNote) githubNote.style.display = data.hasGithubToken ? 'block' : 'none';
-
-  const vercelNote = document.getElementById('vercel-token-status-note');
-  if (vercelNote) vercelNote.style.display = data.hasVercelToken ? 'block' : 'none';
+  maskField(document.getElementById('github-token-input'), data.githubTokenLength);
+  maskField(document.getElementById('vercel-token-input'), data.vercelTokenLength);
 }
 
 async function saveAlertThresholds() {
@@ -231,16 +259,10 @@ async function saveAlertThresholds() {
 }
 
 async function saveGithubToken() {
-  const token = document.getElementById('github-token-input').value.trim();
+  const input = document.getElementById('github-token-input');
+  const token = maskedFieldValue(input).trim();
   const statusEl = document.getElementById('github-token-status');
   const btn = document.getElementById('github-token-save-btn');
-
-  if (!token) {
-    statusEl.style.display = 'block';
-    statusEl.style.color = 'var(--rust)';
-    statusEl.textContent = 'Enter a token.';
-    return;
-  }
 
   btn.disabled = true;
   btn.textContent = 'Saving…';
@@ -254,25 +276,20 @@ async function saveGithubToken() {
   statusEl.style.display = 'block';
   if (error || data?.error) {
     statusEl.style.color = 'var(--rust)';
-    statusEl.textContent = 'Failed to save: ' + (data?.error || error.message);
+    statusEl.textContent = 'Failed to save: ' + await extractFunctionErrorMessage(error, data);
   } else {
     statusEl.style.color = 'var(--sage)';
     statusEl.textContent = 'GitHub token saved.';
-    document.getElementById('github-token-input').value = '';
+    if (token) maskField(input, token.length);
+    else input.value = input.dataset.placeholder || '';
   }
 }
 
 async function saveVercelToken() {
-  const token = document.getElementById('vercel-token-input').value.trim();
+  const input = document.getElementById('vercel-token-input');
+  const token = maskedFieldValue(input).trim();
   const statusEl = document.getElementById('vercel-token-status');
   const btn = document.getElementById('vercel-token-save-btn');
-
-  if (!token) {
-    statusEl.style.display = 'block';
-    statusEl.style.color = 'var(--rust)';
-    statusEl.textContent = 'Enter a token.';
-    return;
-  }
 
   btn.disabled = true;
   btn.textContent = 'Saving…';
@@ -286,11 +303,12 @@ async function saveVercelToken() {
   statusEl.style.display = 'block';
   if (error || data?.error) {
     statusEl.style.color = 'var(--rust)';
-    statusEl.textContent = 'Failed to save: ' + (data?.error || error.message);
+    statusEl.textContent = 'Failed to save: ' + await extractFunctionErrorMessage(error, data);
   } else {
     statusEl.style.color = 'var(--sage)';
     statusEl.textContent = 'Vercel token saved.';
-    document.getElementById('vercel-token-input').value = '';
+    if (token) maskField(input, token.length);
+    else input.value = input.dataset.placeholder || '';
   }
 }
 

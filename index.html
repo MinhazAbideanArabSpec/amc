@@ -475,8 +475,7 @@
             Lets clients publish website updates from their own Website tab. The portal commits directly to each client's connected repo — set the token here once, then connect each client's repo from Clients → Website. Requires the server-side setup in <code>supabase/HOSTING_SETUP.md</code> to be completed once.
           </div>
           <label>GitHub Personal Access Token</label>
-          <input type="password" id="github-token-input" placeholder="Fine-grained token, Contents: Read & write"/>
-          <div id="github-token-status-note" style="font-size:11.5px;color:var(--sage);margin:-10px 0 16px;display:none;">✓ A token is already saved.</div>
+          <input type="password" id="github-token-input" placeholder="Fine-grained token, Contents: Read & write" onfocus="clearMaskedFieldOnFocus(this)"/>
           <button class="secondary" onclick="saveGithubToken()" id="github-token-save-btn">Save Token</button>
           <div id="github-token-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
         </div>
@@ -500,8 +499,7 @@
             Lets clients see their site's visitor stats from their own Website tab. Set the token here once, then connect each client's Vercel project from Clients → Website.
           </div>
           <label>Vercel Access Token</label>
-          <input type="password" id="vercel-token-input" placeholder="Personal or team access token"/>
-          <div id="vercel-token-status-note" style="font-size:11.5px;color:var(--sage);margin:-10px 0 16px;display:none;">✓ A token is already saved.</div>
+          <input type="password" id="vercel-token-input" placeholder="Personal or team access token" onfocus="clearMaskedFieldOnFocus(this)"/>
           <button class="secondary" onclick="saveVercelToken()" id="vercel-token-save-btn">Save Token</button>
           <div id="vercel-token-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
         </div>
@@ -541,8 +539,7 @@
             </div>
             <div>
               <label>App Password</label>
-              <input type="password" id="smtp-password-input" placeholder="Zoho app-specific password"/>
-              <div id="smtp-password-status-note" style="font-size:11.5px;color:var(--sage);margin:-10px 0 16px;display:none;">✓ A password is already saved — leave blank to keep it.</div>
+              <input type="password" id="smtp-password-input" placeholder="Zoho app-specific password" onfocus="clearMaskedFieldOnFocus(this)"/>
             </div>
           </div>
           <label style="display:flex;align-items:center;gap:8px;font-weight:500;margin-bottom:14px;">

@@ -42,7 +42,13 @@ Deno.serve(async (req) => {
 
     const { token } = await req.json();
     if (!token || typeof token !== 'string' || !token.trim()) {
-      return new Response(JSON.stringify({ error: 'Missing token' }), { status: 400, headers: corsHeaders });
+      // Blank means "leave the existing token as-is" — but only if one
+      // actually exists yet, so a genuinely empty setup still errors clearly.
+      const { data: existing } = await admin.from('app_secrets').select('value').eq('key', 'vercel_token').single();
+      if (!existing?.value) {
+        return new Response(JSON.stringify({ error: 'Enter a token — none is saved yet.' }), { status: 400, headers: corsHeaders });
+      }
+      return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
     }
 
     const { error } = await admin.from('app_secrets').upsert({

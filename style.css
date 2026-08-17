@@ -55,7 +55,7 @@
     .login-brand {
       flex: 1 1 46%; position: relative; overflow: hidden;
       background: var(--ink); color: #fff;
-      padding: 48px 44px; display: flex; flex-direction: column; justify-content: flex-start;
+      padding: 48px 44px; display: flex; flex-direction: column; justify-content: center;
     }
     .login-brand::before, .login-brand::after {
       content: ''; position: absolute; border-radius: 50%; filter: blur(70px); z-index: 0;
@@ -83,7 +83,7 @@
     /* Form panel (right) */
     .login-form-panel {
       flex: 1 1 54%; background: var(--card);
-      display: flex; align-items: flex-start; justify-content: center; padding: 48px 40px;
+      display: flex; align-items: center; justify-content: center; padding: 48px 40px;
     }
     .login-box { width: 100%; max-width: 340px; }
     .login-form-logo-wrap { text-align: center; margin-bottom: 32px; }

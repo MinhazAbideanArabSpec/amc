@@ -487,7 +487,9 @@
     .dash-hero-right { flex-shrink: 0; }
 
     /* ── Language toggle ── */
-    #lang-toggle { display: flex; gap: 2px; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 3px; }
+    /* Hidden for now — initLanguage() still sets inline display:flex on login,
+       this CSS override just suppresses it visually without touching the JS. */
+    #lang-toggle { display: none !important; gap: 2px; background: rgba(255,255,255,0.12); border-radius: 6px; padding: 3px; }
     .lang-btn {
       padding: 4px 12px; border-radius: 4px; font-size: 12px; font-weight: 700;
       border: none; cursor: pointer; background: transparent; color: rgba(255,255,255,0.6);

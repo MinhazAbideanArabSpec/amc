@@ -190,7 +190,22 @@ async function afterLogin() {
   } else {
     document.getElementById('customer-view').style.display = 'block';
     document.getElementById('admin-view').style.display = 'none';
-    const startTab = CUSTOMER_TABS.includes(currentHashTab()) ? currentHashTab() : 'overview';
+
+    // Staff accounts inherit access_level and next_visit_date from their
+    // parent company profile, in one lookup — same as before this just
+    // fetched next_visit_date alone.
+    let companyNextVisitDate = profile.next_visit_date;
+    if (profile.customer_id) {
+      const { data: company } = await sb.from('profiles')
+        .select('next_visit_date, access_level').eq('id', profile.customer_id).single();
+      companyNextVisitDate = company?.next_visit_date;
+      myAccessLevel = company?.access_level || 'full';
+    } else {
+      myAccessLevel = profile.access_level || 'full';
+    }
+
+    const defaultTab = myAccessLevel === 'hosting' ? 'hosting' : 'overview';
+    const startTab = CUSTOMER_TABS.includes(currentHashTab()) ? currentHashTab() : defaultTab;
     switchCustomerTab(startTab);
     renderCustomerProfile(profile);
     document.getElementById('dash-hero-name').textContent = profile.name || myProfile?.name;
@@ -210,15 +225,7 @@ async function afterLogin() {
     loadCustomerSubscriptions(cid);
     loadNotifications(cid);
     loadCustomerIssueTags(cid);
-
-    // For staff accounts, fetch next_visit_date from company profile
-    if (profile.customer_id) {
-      const { data: company } = await sb.from('profiles')
-        .select('next_visit_date').eq('id', profile.customer_id).single();
-      loadVisitDates(cid, company?.next_visit_date);
-    } else {
-      loadVisitDates(cid, profile.next_visit_date);
-    }
+    loadVisitDates(cid, companyNextVisitDate);
   }
 }
 
@@ -233,13 +240,19 @@ function currentHashTab() {
 
 // ── Customer: switch between Overview / Profile / Contracts / Assets tabs ──
 function switchCustomerTab(tab) {
+  const blocked = myAccessLevel === 'hosting' && tab !== 'hosting';
+
   CUSTOMER_TABS.forEach(t => {
     document.getElementById(`cust-tab-${t}`)?.classList.toggle('active', t === tab);
     const panel = document.getElementById(`cust-panel-${t}`);
-    if (panel) panel.style.display = t === tab ? 'block' : 'none';
+    if (panel) panel.style.display = (t === tab && !blocked) ? 'block' : 'none';
   });
+  document.getElementById('cust-panel-blocked').style.display = blocked ? 'block' : 'none';
   if (currentHashTab() !== tab) history.pushState(null, '', '#' + tab);
-  document.getElementById('hosting-nav-subtabs')?.classList.toggle('expanded', tab === 'hosting');
+  document.getElementById('hosting-nav-subtabs')?.classList.toggle('expanded', tab === 'hosting' && !blocked);
+
+  if (blocked) return; // hosting-only accounts don't get any of this tab's data loaded
+
   if (tab === 'reports')  loadCustomerReports();
   if (tab === 'renewals') loadCustomerRenewalsTab(getCustomerId());
   if (tab === 'contract') { loadCustomerSubscriptions(getCustomerId()); }

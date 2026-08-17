@@ -675,6 +675,13 @@
         </button>
       </div>
 
+      <!-- Blocked-access panel (hosting-only accounts, any tab other than Hosting) -->
+      <div id="cust-panel-blocked" style="display:none;">
+        <div class="card">
+          <div class="empty-state">No permission — no AMC contract exists for this section.</div>
+        </div>
+      </div>
+
       <!-- Overview panel -->
       <div id="cust-panel-overview">
 
@@ -1636,6 +1643,14 @@
     <input type="text" id="form-phone"/>
     <label>Next Visit Date <span style="font-size:11px;color:#8A8377;">(customers only)</span></label>
     <input type="date" id="form-next-visit-date"/>
+
+    <div id="form-access-level-section" style="display:none;">
+      <label>Access Level <span style="font-size:11px;color:#8A8377;">(customers only)</span></label>
+      <select id="form-access-level">
+        <option value="full">Full Access — all client tabs</option>
+        <option value="hosting">Hosting Only — Hosting tab only, everything else blocked</option>
+      </select>
+    </div>
 
     <div id="edit-logo-section" style="display:none;margin-top:4px;">
       <label>Client Logo</label>

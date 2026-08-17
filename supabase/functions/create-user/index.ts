@@ -44,9 +44,10 @@ Deno.serve(async (req) => {
     // ── Route by action ───────────────────────────────────
     if (action === 'create-user' || !action) {
       // ── CREATE USER ──────────────────────────────────────
-      const { email, name, role, contact_person, phone, customer_id } = body
+      const { email, name, role, contact_person, phone, customer_id, access_level } = body
       if (!email || !name || !role) return jsonResponse({ error: 'Missing required fields' }, 400)
       if (!['admin', 'customer'].includes(role)) return jsonResponse({ error: 'Invalid role' }, 400)
+      if (access_level && !['full', 'hosting'].includes(access_level)) return jsonResponse({ error: 'Invalid access_level' }, 400)
 
       // Create auth user without password (passwordless / OTP only)
       const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
@@ -60,6 +61,7 @@ Deno.serve(async (req) => {
         phone: phone || null,
         is_active: true,
         customer_id: customer_id || null,
+        access_level: access_level || 'full',
       })
       if (insertError) {
         await adminClient.auth.admin.deleteUser(newUser.user.id)

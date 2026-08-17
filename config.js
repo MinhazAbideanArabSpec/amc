@@ -16,6 +16,20 @@ function getCustomerId() {
   return myProfile?.customer_id || myProfile?.id;
 }
 
+// Client-side access tier gate ('full' or 'hosting'), set once at login /
+// view-as time by resolveAccessLevel() below. Staff sub-accounts store no
+// access_level of their own — they inherit their parent company's, same as
+// next_visit_date already works.
+var myAccessLevel = 'full';
+
+async function resolveAccessLevel(profile) {
+  if (profile.customer_id) {
+    const { data } = await sb.from('profiles').select('access_level').eq('id', profile.customer_id).single();
+    return data?.access_level || 'full';
+  }
+  return profile.access_level || 'full';
+}
+
 // sb.functions.invoke()'s error.message is always the same generic string
 // on any non-2xx response — the real message our function returned lives in
 // error.context (the raw Response), which the SDK doesn't surface itself.

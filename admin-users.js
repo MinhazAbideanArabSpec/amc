@@ -36,7 +36,7 @@ function renderClientsTable() {
 
   tbody.innerHTML = rows.map(u => `
     <tr>
-      <td style="font-weight:600;">${u.name}</td>
+      <td style="font-weight:600;">${u.name}${u.access_level === 'hosting' ? ' <span class="badge" style="background:#FEF3C7;color:#92400E;">Hosting Only</span>' : ''}</td>
       <td>${u.email}</td>
       <td><span class="badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
       <td style="font-size:12.5px;color:#64748B;">${fmtDateTime(u.last_login_at)}</td>
@@ -98,7 +98,7 @@ function renderUsersTable() {
 
   tbody.innerHTML = rows.map(u => `
     <tr>
-      <td style="font-weight:600;">${u.name}</td>
+      <td style="font-weight:600;">${u.name}${u.access_level === 'hosting' ? ' <span class="badge" style="background:#FEF3C7;color:#92400E;">Hosting Only</span>' : ''}</td>
       <td>${u.email}</td>
       <td><span class="badge ${u.role}">${u.role}</span></td>
       <td><span class="badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
@@ -183,6 +183,8 @@ function openCreateModal() {
   document.getElementById('form-contact-person').value = '';
   document.getElementById('form-phone').value = '';
   document.getElementById('form-next-visit-date').value = '';
+  document.getElementById('form-access-level').value = 'full';
+  document.getElementById('form-access-level-section').style.display = 'block';
   document.getElementById('form-error').style.display = 'none';
   document.getElementById('edit-logo-section').style.display = 'none';
   document.getElementById('edit-address-section').style.display = 'none';
@@ -203,6 +205,8 @@ async function openEditModal(userId) {
   document.getElementById('form-contact-person').value = u.contact_person || '';
   document.getElementById('form-phone').value = u.phone || '';
   document.getElementById('form-next-visit-date').value = u.next_visit_date || '';
+  document.getElementById('form-access-level').value = u.access_level || 'full';
+  document.getElementById('form-access-level-section').style.display = u.role === 'customer' ? 'block' : 'none';
   document.getElementById('form-error').style.display = 'none';
   document.getElementById('edit-logo-section').style.display = u.role === 'customer' ? 'block' : 'none';
   document.getElementById('edit-address-section').style.display = u.role === 'customer' ? 'block' : 'none';
@@ -225,6 +229,7 @@ async function saveUser() {
   const contactPerson = document.getElementById('form-contact-person').value.trim();
   const phone = document.getElementById('form-phone').value.trim();
   const nextVisitDate = document.getElementById('form-next-visit-date').value || null;
+  const accessLevel = document.getElementById('form-access-level').value;
 
   if (!name) {
     errEl.textContent = 'Name is required.';
@@ -237,7 +242,7 @@ async function saveUser() {
     // ── UPDATE existing profile ──
     const newEmail = document.getElementById('form-email').value.trim();
     const { error } = await sb.from('profiles')
-      .update({ name, role, email: newEmail, contact_person: contactPerson, phone, next_visit_date: nextVisitDate })
+      .update({ name, role, email: newEmail, contact_person: contactPerson, phone, next_visit_date: nextVisitDate, access_level: accessLevel })
       .eq('id', editingUserId);
 
     saveBtn.disabled = false;
@@ -273,7 +278,8 @@ async function saveUser() {
         body: JSON.stringify({
           email, name, role,
           contact_person: contactPerson,
-          phone
+          phone,
+          access_level: accessLevel
         }),
       });
       const result = await res.json();
@@ -593,6 +599,7 @@ async function viewAsCustomer(customerId) {
   if (!profile) { alert('Could not load customer profile.'); return; }
 
   viewAsProfile = profile;
+  myAccessLevel = await resolveAccessLevel(profile);
 
   // Clear hero logo and name from previous customer
   const heroRight = document.getElementById('dash-hero-right');
@@ -650,7 +657,7 @@ async function viewAsCustomer(customerId) {
 
   // Load this customer's data fresh
   const cid = getCustomerId();
-  switchCustomerTab('overview');
+  switchCustomerTab(myAccessLevel === 'hosting' ? 'hosting' : 'overview');
   await renderCustomerProfile(profile);
   initLanguage(profile.language || 'en');
   loadCustomerContracts(cid);
@@ -665,6 +672,7 @@ async function viewAsCustomer(customerId) {
 
 function exitViewAs() {
   viewAsProfile = null;
+  myAccessLevel = 'full';
   document.getElementById('view-as-banner').style.display = 'none';
   document.getElementById('customer-view').style.display = 'none';
   document.getElementById('admin-view').style.display = 'block';

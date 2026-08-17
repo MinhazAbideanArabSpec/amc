@@ -6,7 +6,7 @@
 // the network is unavailable.
 
 const CACHE_NAME = 'amc-shell-v1';
-const SHELL_URLS = ['.', 'index.html', 'style.css', 'favicon.svg', 'manifest.json'];
+const SHELL_URLS = ['.', 'index.html', 'style.css', 'favicon.png', 'manifest.json'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(

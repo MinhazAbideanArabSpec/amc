@@ -4,7 +4,7 @@
 // to 0 and the minor number (Y) increments instead (2.1.9 -> 2.2.0) — a
 // base-10 odometer. This file is the only thing that changes for a bump.
 
-const APP_VERSION = '2.1.7';
+const APP_VERSION = '2.1.8';
 
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.app-version-label').forEach(el => {

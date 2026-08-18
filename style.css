@@ -67,7 +67,7 @@
       height: 40px; width: auto; max-width: 160px; object-fit: contain;
       background: #fff; border-radius: 8px; padding: 6px 10px; margin-bottom: 28px;
     }
-    .login-brand h1 { font-size: 26px; color: #fff; margin-bottom: 6px; letter-spacing: -0.01em; }
+    .login-brand h1 { font-family: 'Fraunces', serif; font-size: 34px; font-weight: 600; color: #fff; margin-bottom: 6px; letter-spacing: -0.01em; }
     .login-brand .login-sub {
       font-size: 12.5px; color: #C9D4DE; margin-bottom: 36px;
       text-transform: uppercase; letter-spacing: 0.08em; font-weight: 500;
@@ -96,6 +96,25 @@
       .login-brand { padding: 32px 30px; }
       .login-feature-list { display: none; }
       .login-form-panel { padding: 36px 30px; }
+    }
+
+    /* ── Login brand panel: starfield + constellation ── */
+    .const-svg { position: absolute; inset: 0; z-index: 0; width: 100%; height: 100%; pointer-events: none; }
+    .star { fill: rgba(255,255,255,0.95); animation-name: star-twinkle; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+    .star-accent { fill: rgba(120,166,141,0.95); }
+    @keyframes star-twinkle {
+      0%, 100% { opacity: 0.12; }
+      50% { opacity: 0.9; }
+    }
+    .star-hero { transform-box: fill-box; transform-origin: center; animation-name: star-hero-twinkle; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+    @keyframes star-hero-twinkle {
+      0%, 100% { opacity: 0.25; transform: scale(0.7); }
+      50%      { opacity: 1;    transform: scale(1.15); }
+    }
+    .const-line { stroke: rgba(255,255,255,0.6); stroke-width: 0.6; animation-name: line-fade; animation-timing-function: ease-in-out; animation-iteration-count: infinite; }
+    @keyframes line-fade {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 0.26; }
     }
     label {
       display: block; font-size: 12.5px; margin-bottom: 6px; color: var(--ink-soft);

@@ -1,8 +1,7 @@
-// Shared by godaddy-dns-list and godaddy-dns-write: resolves which caller
-// is asking, which domain their company is connected to, and the shared
-// GoDaddy Personal Access Token (PAT) to use — or returns a Response to
-// send back immediately (no session, no domain connected, DNS not
-// configured yet).
+// Used by godaddy-dns-list: resolves which caller is asking, which domain
+// their company is connected to, and the shared GoDaddy Personal Access
+// Token (PAT) to use — or returns a Response to send back immediately (no
+// session, no domain connected, DNS not configured yet).
 //
 // GoDaddy's DNS management lives exclusively on their v3 Domains API
 // (api.godaddy.com/v3/domains/zones/{zone}/dns-records), authenticated
@@ -81,10 +80,3 @@ export function gdHeaders(pat: string): Record<string, string> {
 export function zoneRecordsUrl(domain: string, path = ''): string {
   return `${GODADDY_API_BASE}/v3/domains/zones/${encodeURIComponent(domain)}/dns-records${path}`;
 }
-
-// Record types with a full add/edit form in the UI. Everything else (NS,
-// SOA, SRV, CAA, ALIAS, …) is shown read-only — GoDaddy-managed NS/SOA
-// records are protected server-side anyway (409 on delete), and SRV/CAA
-// need extra fields (weight/port, flags/tag) not worth building for a
-// first version. Enforced here, not just hidden client-side.
-export const WRITABLE_TYPES = ['A', 'AAAA', 'CNAME', 'TXT', 'MX'];

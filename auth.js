@@ -262,16 +262,20 @@ function switchCustomerTab(tab) {
   if (tab === 'tickets')  loadCustomerTicketsTab(getCustomerId());
 }
 
-// ── Hosting tab: Website / Analytics sub-sections ──
+// ── Hosting tab: Website / Analytics / Domains sub-sections ──
 function switchHostingSubTab(sub) {
   document.getElementById('hosting-subtab-website')?.classList.toggle('active', sub === 'website');
   document.getElementById('hosting-subtab-analytics')?.classList.toggle('active', sub === 'analytics');
+  document.getElementById('hosting-subtab-domains')?.classList.toggle('active', sub === 'domains');
   const websiteEl = document.getElementById('hosting-section-website');
   const analyticsEl = document.getElementById('hosting-section-analytics');
+  const domainsEl = document.getElementById('hosting-section-domains');
   if (websiteEl) websiteEl.style.display = sub === 'website' ? 'block' : 'none';
   if (analyticsEl) analyticsEl.style.display = sub === 'analytics' ? 'block' : 'none';
+  if (domainsEl) domainsEl.style.display = sub === 'domains' ? 'block' : 'none';
   if (sub === 'website') loadCustomerWebsiteTab(getCustomerId());
   if (sub === 'analytics') loadCustomerAnalyticsTab(getCustomerId());
+  if (sub === 'domains') loadCustomerDomainsTab(getCustomerId());
 }
 
 // ── Admin: switch tabs ──

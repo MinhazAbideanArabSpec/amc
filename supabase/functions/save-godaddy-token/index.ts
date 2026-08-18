@@ -1,16 +1,14 @@
-// get-settings-status — admin-only. Reports non-secret config values as-is,
-// and secret values as a character COUNT only (never the value itself), so
-// the client can pre-fill masked fields with the right number of dots
-// instead of looking empty every time the page loads. app_secrets has zero
-// client-facing RLS policies, so this is the only way the Settings UI can
-// know any of this.
+// save-godaddy-token — admin-only. Stores a GoDaddy Personal Access Token
+// (PAT) in the locked-down app_secrets table (no RLS policies granted to
+// anon/authenticated, so only this function's service-role client can
+// ever read it back). Used by godaddy-dns-list/godaddy-dns-write to
+// manage DNS on every connected customer's behalf.
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Content-Type': 'application/json',
 };
 
 Deno.serve(async (req) => {
@@ -42,22 +40,25 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: corsHeaders });
     }
 
-    const { data: secrets } = await admin.from('app_secrets').select('key, value');
-    const cfg: Record<string, string> = {};
-    (secrets || []).forEach((s: { key: string; value: string }) => { cfg[s.key] = s.value; });
+    const { token } = await req.json();
+    if (!token || typeof token !== 'string' || !token.trim()) {
+      // Blank means "leave the existing token as-is" — but only if one
+      // actually exists yet, so a genuinely empty setup still errors clearly.
+      const { data: existing } = await admin.from('app_secrets').select('value').eq('key', 'godaddy_pat').single();
+      if (!existing?.value) {
+        return new Response(JSON.stringify({ error: 'Enter a token — none is saved yet.' }), { status: 400, headers: corsHeaders });
+      }
+      return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
+    }
 
-    return new Response(JSON.stringify({
-      smtp: {
-        host: cfg.smtp_host || '',
-        port: cfg.smtp_port || '',
-        username: cfg.smtp_username || '',
-        secure: cfg.smtp_secure === 'true',
-        passwordLength: (cfg.smtp_password || '').length,
-      },
-      githubTokenLength: (cfg.github_token || '').length,
-      vercelTokenLength: (cfg.vercel_token || '').length,
-      godaddyTokenLength: (cfg.godaddy_pat || '').length,
-    }), { headers: corsHeaders });
+    const { error } = await admin.from('app_secrets').upsert({
+      key: 'godaddy_pat',
+      value: token.trim(),
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw error;
+
+    return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });
   }

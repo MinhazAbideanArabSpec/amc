@@ -511,6 +511,19 @@
           <button class="secondary" onclick="saveVercelToken()" id="vercel-token-save-btn">Save Token</button>
           <div id="vercel-token-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
         </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>🌐 GoDaddy DNS</h2>
+          </div>
+          <div style="font-size:12px;color:#94A3B8;margin-bottom:12px;">
+            Lets clients view and edit their domain's DNS records from their own Hosting → Domains tab. Set the token here once, then connect each client's domain from Clients → Website. Requires the server-side setup in <code>supabase/DOMAINS_DNS_SETUP.md</code> to be completed once.
+          </div>
+          <label>GoDaddy Personal Access Token</label>
+          <input type="password" id="godaddy-token-input" placeholder="Scoped to Domains & DNS" onfocus="clearMaskedFieldOnFocus(this)"/>
+          <button class="secondary" onclick="saveGodaddyToken()" id="godaddy-token-save-btn">Save Token</button>
+          <div id="godaddy-token-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
+        </div>
       </div>
 
       <!-- SMTP panel -->
@@ -653,13 +666,9 @@
         <div class="nav-subtabs" id="hosting-nav-subtabs">
           <button class="nav-subtab active" id="hosting-subtab-website" onclick="switchHostingSubTab('website')">Website</button>
           <button class="nav-subtab" id="hosting-subtab-analytics" onclick="switchHostingSubTab('analytics')">Analytics</button>
+          <button class="nav-subtab" id="hosting-subtab-domains" onclick="switchHostingSubTab('domains')">Domains</button>
         </div>
 
-        <div class="nav-tab nav-tab-soon">
-          <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
-          <span>Domains</span>
-          <span class="nav-tab-soon-badge">Soon</span>
-        </div>
         <button class="nav-tab" id="cust-tab-tickets" onclick="switchCustomerTab('tickets')">
           <svg class="nav-tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
           <span>Ticketing</span>
@@ -1085,6 +1094,21 @@
             </div>
           </template>
         </div>
+
+        <div id="hosting-section-domains" style="display:none;">
+          <div class="card">
+            <div class="card-header">
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div class="card-icon" style="background:linear-gradient(135deg,#025430,#023F24);">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M2 12h20M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/></svg>
+                </div>
+                <h2>DNS Records</h2>
+              </div>
+              <button class="secondary" onclick="openDnsRecordModal()" id="dns-add-record-btn" style="display:none;">+ Add Record</button>
+            </div>
+            <div id="domains-body"><div class="empty-state">Loading…</div></div>
+          </div>
+        </div>
       </div>
 
       <!-- Tickets panel -->
@@ -1419,6 +1443,9 @@
     <input type="text" id="website-vercel-project-input" placeholder="prj_xxxxxxxxxxxxxxxxxxxx"/>
     <label>Vercel Team ID <span style="font-weight:400;color:#94A3B8;">(leave blank for a personal account project)</span></label>
     <input type="text" id="website-vercel-team-input" placeholder="team_xxxxxxxxxxxxxxxxxxxx"/>
+    <div style="font-size:11px;color:#94A3B8;margin:2px 0 10px;">Optional — lets this client manage DNS from their own Hosting → Domains tab.</div>
+    <label>Domain</label>
+    <input type="text" id="website-domain-input" placeholder="client-site.com"/>
     <div id="website-modal-error" style="color:var(--rust);background:var(--rust-bg);border-radius:3px;
       padding:8px 12px;font-size:13px;margin-bottom:10px;display:none;"></div>
     <div class="modal-actions">
@@ -1454,6 +1481,63 @@
     <div class="modal-actions">
       <button class="secondary" onclick="closeDeleteFileModal()">Cancel</button>
       <button class="danger" onclick="confirmDeleteWebsiteFile()" id="website-delete-confirm-btn">Delete File</button>
+    </div>
+  </div>
+</div>
+
+<!-- DNS RECORD ADD/EDIT MODAL -->
+<div class="modal-overlay" id="dns-record-modal-overlay">
+  <div class="modal-box">
+    <h2 id="dns-record-modal-title">Add DNS Record</h2>
+    <div id="dns-record-modal-error" style="color:var(--rust);background:var(--rust-bg);border-radius:3px;
+      padding:8px 12px;font-size:13px;margin-bottom:10px;display:none;"></div>
+    <label>Type</label>
+    <select id="dns-record-type-input" onchange="onDnsRecordTypeChange()">
+      <option value="A">A — points a name to an IPv4 address</option>
+      <option value="AAAA">AAAA — points a name to an IPv6 address</option>
+      <option value="CNAME">CNAME — points a name to another domain name</option>
+      <option value="TXT">TXT — arbitrary text (verification, SPF, etc.)</option>
+      <option value="MX">MX — mail server for this domain</option>
+    </select>
+    <label>Name</label>
+    <input type="text" id="dns-record-name-input" placeholder="@ for the root domain, or e.g. www, mail"/>
+    <label>Value</label>
+    <input type="text" id="dns-record-data-input" placeholder="e.g. 192.0.2.1 or the target domain"/>
+    <div class="form-2col">
+      <div>
+        <label>TTL (seconds)</label>
+        <input type="number" id="dns-record-ttl-input" min="600" value="3600"/>
+      </div>
+      <div id="dns-record-priority-wrap" style="display:none;">
+        <label>Priority</label>
+        <input type="number" id="dns-record-priority-input" min="0" value="10"/>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#94A3B8;margin:-6px 0 14px;">
+      This changes your live DNS. Changes usually take effect within minutes, but can take up to 48 hours to reach every network.
+    </div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeDnsRecordModal()">Cancel</button>
+      <button onclick="saveDnsRecord()" id="dns-record-save-btn">Save Record</button>
+    </div>
+  </div>
+</div>
+
+<!-- DNS RECORD DELETE MODAL -->
+<div class="modal-overlay" id="dns-delete-modal-overlay">
+  <div class="modal-box">
+    <h2>Delete DNS Record</h2>
+    <div style="font-size:13px;margin:12px 0;">
+      Delete this <strong id="dns-delete-modal-summary" style="font-family:monospace;word-break:break-all;"></strong> record?
+    </div>
+    <div style="color:var(--rust);background:var(--rust-bg);border-radius:3px;padding:10px 12px;font-size:12.5px;line-height:1.5;margin-bottom:14px;">
+      ⚠️ This changes your live DNS immediately. If this record is in use, your site or email may stop working until it's fixed. This can't be undone from here.
+    </div>
+    <div id="dns-delete-modal-error" style="color:var(--rust);background:var(--rust-bg);border-radius:3px;
+      padding:8px 12px;font-size:13px;margin-bottom:10px;display:none;"></div>
+    <div class="modal-actions">
+      <button class="secondary" onclick="closeDnsDeleteModal()">Cancel</button>
+      <button class="danger" onclick="confirmDeleteDnsRecord()" id="dns-delete-confirm-btn">Delete Record</button>
     </div>
   </div>
 </div>
@@ -1696,6 +1780,7 @@
   <script src="tags.js"></script>
   <script src="tickets.js"></script>
   <script src="analytics.js"></script>
+  <script src="dns.js"></script>
   <script src="marketing.js"></script>
   <script src="version.js"></script>
 

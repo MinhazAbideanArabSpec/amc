@@ -551,13 +551,15 @@ async function openWebsiteModal(customerId, customerName) {
   document.getElementById('website-branch-input').value = 'main';
   document.getElementById('website-vercel-project-input').value = '';
   document.getElementById('website-vercel-team-input').value = '';
+  document.getElementById('website-domain-input').value = '';
 
-  const { data: site } = await sb.from('customer_sites').select('repo, branch, vercel_project_id, vercel_team_id').eq('customer_id', customerId).single();
+  const { data: site } = await sb.from('customer_sites').select('repo, branch, vercel_project_id, vercel_team_id, domain').eq('customer_id', customerId).single();
   if (site) {
     document.getElementById('website-repo-input').value = site.repo;
     document.getElementById('website-branch-input').value = site.branch;
     document.getElementById('website-vercel-project-input').value = site.vercel_project_id || '';
     document.getElementById('website-vercel-team-input').value = site.vercel_team_id || '';
+    document.getElementById('website-domain-input').value = site.domain || '';
   }
 
   document.getElementById('website-modal-overlay').classList.add('open');
@@ -572,6 +574,7 @@ async function saveWebsiteConfig() {
   const branch = document.getElementById('website-branch-input').value.trim() || 'main';
   const vercel_project_id = document.getElementById('website-vercel-project-input').value.trim() || null;
   const vercel_team_id = document.getElementById('website-vercel-team-input').value.trim() || null;
+  const domain = document.getElementById('website-domain-input').value.trim() || null;
   const errEl = document.getElementById('website-modal-error');
   const btn = document.getElementById('website-save-btn');
   errEl.style.display = 'none';
@@ -584,7 +587,7 @@ async function saveWebsiteConfig() {
 
   btn.disabled = true; btn.textContent = 'Saving…';
   const { error } = await sb.from('customer_sites').upsert({
-    customer_id: _websiteCustomerId, repo, branch, vercel_project_id, vercel_team_id,
+    customer_id: _websiteCustomerId, repo, branch, vercel_project_id, vercel_team_id, domain,
   }, { onConflict: 'customer_id' });
   btn.disabled = false; btn.textContent = 'Save';
 

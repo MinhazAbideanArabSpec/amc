@@ -39,6 +39,12 @@ export function renderAlertEmailHtml(data: AlertEmailData): string {
   const { type, itemName, vendor, customerName, expiryDate, daysLeft, isTest } = data;
   const u = urgency(daysLeft);
   const typeLabel = type === 'contract' ? 'Contract' : 'Software Renewal';
+  // Lines that are pure whitespace (e.g. an empty ${testBanner} slot on real
+  // alerts) get quoted-printable-encoded as a trailing "=20" by some SMTP
+  // pipelines. Clients that don't decode QP show that escape sequence
+  // literally instead of a blank line, so trailing whitespace is stripped
+  // from every line of the final HTML before it's returned.
+  const stripTrailingWhitespace = (html: string) => html.split('\n').map(line => line.replace(/[ \t]+$/, '')).join('\n');
 
   const testBanner = isTest ? `
         <tr><td style="background:#FEF3C7;color:#92400E;font-size:12px;font-weight:700;text-align:center;padding:8px;letter-spacing:0.04em;text-transform:uppercase;">
@@ -51,7 +57,7 @@ export function renderAlertEmailHtml(data: AlertEmailData): string {
                 <td style="padding:8px 0;border-bottom:1px solid ${LINE};text-align:right;font-weight:600;font-size:14px;color:${INK};">${vendor}</td>
               </tr>` : '';
 
-  return `<!DOCTYPE html>
+  return stripTrailingWhitespace(`<!DOCTYPE html>
 <html>
 <body style="margin:0;padding:0;background:#FAFAF9;font-family:-apple-system,'Segoe UI',Helvetica,Arial,sans-serif;">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#FAFAF9;padding:32px 16px;">
@@ -108,7 +114,7 @@ export function renderAlertEmailHtml(data: AlertEmailData): string {
     </td></tr>
   </table>
 </body>
-</html>`;
+</html>`);
 }
 
 export function renderAlertEmailText(data: AlertEmailData): string {

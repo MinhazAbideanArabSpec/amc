@@ -9,7 +9,7 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
 
 const RENEWAL_THRESHOLD_DAYS = 90;
 const VISIT_THRESHOLD_DAYS = 30;
-const PAGE_SIZE = 6;
+const PAGE_SIZE = 5;
 const PAGE_INTERVAL_MS = 12000;
 const DATA_REFRESH_MS = 5 * 60 * 1000;
 

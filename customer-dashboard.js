@@ -947,29 +947,21 @@ async function loadCustomerWebsiteTab(customerId) {
   }
 
   el.innerHTML = `
-    <div style="font-size:13px;color:#475569;margin-bottom:16px;">
-      Download a backup of your current files before making changes — if something goes wrong after publishing, you can always re-upload it.
-    </div>
-    <button class="secondary" onclick="downloadWebsiteBackup()" id="website-backup-btn">Download Backup</button>
+    <p class="hosting-lede">Download a backup of your current files before making changes — if something goes wrong after publishing, you can always re-upload it.</p>
+    <button class="secondary" onclick="downloadWebsiteBackup()" id="website-backup-btn">Download backup</button>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
-      <label>Repository Files</label>
-      <div id="website-files-list"><div class="empty-state">Loading…</div></div>
-    </div>
+    <div class="hosting-section-label">Repository files</div>
+    <div id="website-files-list"><div class="empty-state">Loading…</div></div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
-      <label>Publish updated files</label>
-      <input type="file" id="website-upload-input" multiple/>
-      <div style="font-size:12px;color:#94A3B8;margin:6px 0 12px;">Select one or more files (.html, .css, .js, images, …) to replace files with the same name at your site's root — or select a single .zip to replace matching files anywhere in the folder structure.</div>
-      <button onclick="publishWebsiteChanges()" id="website-publish-btn">Publish Changes</button>
-      <div id="website-publish-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
-    </div>
+    <div class="hosting-section-label">Publish updated files</div>
+    <input type="file" id="website-upload-input" multiple/>
+    <div style="font-size:12px;color:#94A3B8;margin:6px 0 12px;">Select one or more files (.html, .css, .js, images, …) to replace files with the same name at your site's root — or select a single .zip to replace matching files anywhere in the folder structure.</div>
+    <button onclick="publishWebsiteChanges()" id="website-publish-btn">Publish changes</button>
+    <div id="website-publish-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
 
-    <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--line);">
-      <label>Latest Version</label>
-      <div style="font-size:12px;color:#94A3B8;margin-bottom:10px;">The most recent change made to your site, whether published from here or another way.</div>
-      <div id="website-history-list"><div class="empty-state">Loading…</div></div>
-    </div>
+    <div class="hosting-section-label">Latest version</div>
+    <div style="font-size:12px;color:#94A3B8;margin-bottom:10px;">The most recent change made to your site, whether published from here or another way.</div>
+    <div id="website-history-list"><div class="empty-state">Loading…</div></div>
   `;
 
   loadWebsiteFileList();
@@ -1007,15 +999,14 @@ async function loadWebsiteFileList() {
   }
 
   listEl.innerHTML = `
-    <div style="max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;">
-      ${files.map((f, i) => `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
-          ${i % 2 === 0 ? 'background:#F8F9FA;' : ''} ${i < files.length - 1 ? 'border-bottom:1px solid var(--line);' : ''}">
-          <span style="font-size:12.5px;font-family:monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.path)}</span>
-          <span style="display:flex;align-items:center;gap:10px;flex-shrink:0;">
-            <span style="font-size:11.5px;color:#94A3B8;">${fmtFileSize(f.size)}</span>
-            <button class="secondary" style="padding:3px 10px;font-size:12px;" onclick="viewWebsiteFile('${f.sha}','${f.path.replace(/'/g, "\\'")}')">View</button>
-            <button class="danger" style="padding:3px 10px;font-size:12px;" onclick="openDeleteFileModal('${f.sha}','${f.path.replace(/'/g, "\\'")}')">Delete</button>
+    <div class="hosting-list" style="max-height:340px;overflow-y:auto;">
+      ${files.map(f => `
+        <div class="hosting-row">
+          <span style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(f.path)}</span>
+          <span style="display:flex;align-items:center;gap:20px;flex-shrink:0;">
+            <span style="font-size:12px;color:#8A8377;">${fmtFileSize(f.size)}</span>
+            <span style="font-size:12.5px;color:var(--accent);font-weight:600;cursor:pointer;" onclick="viewWebsiteFile('${f.sha}','${f.path.replace(/'/g, "\\'")}')">View</span>
+            <span style="font-size:12.5px;color:#8A8377;font-weight:600;cursor:pointer;" onclick="openDeleteFileModal('${f.sha}','${f.path.replace(/'/g, "\\'")}')">Delete</span>
           </span>
         </div>
       `).join('')}
@@ -1103,17 +1094,16 @@ async function loadWebsiteHistory() {
   }
 
   listEl.innerHTML = `
-    <div style="max-height:320px;overflow-y:auto;border:1px solid var(--line);border-radius:6px;">
-      ${commits.map((c, i) => {
+    <div class="hosting-list">
+      ${commits.map(c => {
         const firstLine = (c.message || '').split('\n')[0];
         return `
-        <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 12px;
-          ${i % 2 === 0 ? 'background:#F8F9FA;' : ''} ${i < commits.length - 1 ? 'border-bottom:1px solid var(--line);' : ''}">
+        <div class="hosting-row">
           <span style="min-width:0;overflow:hidden;">
-            <div style="font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(firstLine)}</div>
-            <div style="font-size:11px;color:#94A3B8;">${escapeHtml(c.authorName)} · ${fmtDateTime(c.date)} · <span style="font-family:monospace;">${escapeHtml((c.sha || '').slice(0, 7))}</span></div>
+            <div style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${escapeHtml(firstLine)}</div>
+            <div style="font-size:12px;color:#8A8377;margin-top:2px;">${escapeHtml(c.authorName)} · ${fmtDateTime(c.date)} · <span style="font-family:monospace;">${escapeHtml((c.sha || '').slice(0, 7))}</span></div>
           </span>
-          <button class="secondary" style="padding:3px 10px;font-size:12px;flex-shrink:0;" onclick="viewCommitChanges('${c.sha}')">View Changes</button>
+          <span style="font-size:12.5px;color:var(--accent);font-weight:600;cursor:pointer;flex-shrink:0;" onclick="viewCommitChanges('${c.sha}')">View changes</span>
         </div>
       `; }).join('')}
     </div>

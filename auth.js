@@ -249,7 +249,6 @@ function switchCustomerTab(tab) {
   });
   document.getElementById('cust-panel-blocked').style.display = blocked ? 'block' : 'none';
   if (currentHashTab() !== tab) history.pushState(null, '', '#' + tab);
-  document.getElementById('hosting-nav-subtabs')?.classList.toggle('expanded', tab === 'hosting' && !blocked);
 
   if (blocked) return; // hosting-only accounts don't get any of this tab's data loaded
 

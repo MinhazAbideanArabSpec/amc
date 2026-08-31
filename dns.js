@@ -36,6 +36,11 @@ function groupDnsRecords(records) {
   return Array.from(byKey.values()).sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
 }
 
+// Types whose values are host/domain names (safe to break at any char);
+// everything else (TXT, etc.) can hold long unbroken strings like SPF/DKIM
+// records, so those get word-break instead.
+const DNS_HOST_TYPES = ['A', 'AAAA', 'CNAME', 'NS', 'MX'];
+
 function renderDnsGroups(records) {
   const el = document.getElementById('domains-body');
   if (!el) return;
@@ -46,21 +51,18 @@ function renderDnsGroups(records) {
     return;
   }
 
+  const rows = groups.flatMap(g => g.records.map(r => ({ ...r, type: g.type, name: g.name })));
+  const primaryTypes = ['A', 'AAAA', 'CNAME'];
+
   el.innerHTML = `
-    <div style="font-size:12px;color:#94A3B8;margin-bottom:12px;">These records are view-only — contact ArabSpec to request a change.</div>
-    <div style="border:1px solid var(--line);border-radius:6px;overflow:hidden;">
-      ${groups.map((g, gi) => `
-        <div style="padding:10px 12px;${gi > 0 ? 'border-top:1px solid var(--line);' : ''} ${gi % 2 === 0 ? 'background:#F8F9FA;' : ''}">
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-            <span style="font-size:11px;font-weight:700;color:var(--sage,#5B7D6B);background:rgba(2,84,48,0.1);padding:2px 7px;border-radius:3px;">${escapeHtml(g.type)}</span>
-            <span style="font-family:monospace;font-size:12.5px;">${escapeHtml(g.name)}</span>
-          </div>
-          ${g.records.map(r => `
-            <div style="padding:4px 0;font-family:monospace;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-              ${escapeHtml(r.data)}${r.priority != null ? ` <span style="color:#94A3B8;">(priority ${r.priority})</span>` : ''}
-              <span style="color:#94A3B8;">· TTL ${r.ttl}</span>
-            </div>
-          `).join('')}
+    <p class="hosting-lede">These records are view-only — contact ArabSpec to request a change.</p>
+    <div class="hosting-list">
+      ${rows.map(r => `
+        <div class="hosting-row">
+          <span class="hosting-dns-type ${primaryTypes.includes(r.type) ? 'primary' : 'muted'}">${escapeHtml(r.type)}</span>
+          <span style="font-family:monospace;font-size:13px;width:70px;flex-shrink:0;">${escapeHtml(r.name)}</span>
+          <span style="font-family:monospace;font-size:13px;color:var(--ink-soft);flex:1;overflow-wrap:${DNS_HOST_TYPES.includes(r.type) ? 'break-word' : 'anywhere'};">${escapeHtml(r.data)}${r.priority != null ? ` <span style="color:#8A8377;">(priority ${r.priority})</span>` : ''}</span>
+          <span style="font-size:12px;color:#8A8377;flex-shrink:0;white-space:nowrap;">TTL ${r.ttl}</span>
         </div>
       `).join('')}
     </div>

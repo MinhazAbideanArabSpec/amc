@@ -36,11 +36,11 @@ function groupDnsRecords(records) {
   return Array.from(byKey.values()).sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
 }
 
-// Types whose values are host/domain names (safe to break at any char);
-// everything else (TXT, etc.) can hold long unbroken strings like SPF/DKIM
-// records, so those get word-break instead.
-const DNS_HOST_TYPES = ['A', 'AAAA', 'CNAME', 'NS', 'MX'];
-
+// DNS names and values vary wildly in length (a bare "@" next to a DKIM
+// selector like "selector1._domainkey"; a short IP next to a long DKIM
+// public-key TXT value) — a fixed-width single-line row overlaps as soon as
+// real-world records show up. Stacking type+name above value+TTL, both
+// wrapping freely, means no combination of lengths can ever overlap.
 function renderDnsGroups(records) {
   const el = document.getElementById('domains-body');
   if (!el) return;
@@ -58,11 +58,15 @@ function renderDnsGroups(records) {
     <p class="hosting-lede">These records are view-only — contact ArabSpec to request a change.</p>
     <div class="hosting-list">
       ${rows.map(r => `
-        <div class="hosting-row">
-          <span class="hosting-dns-type ${primaryTypes.includes(r.type) ? 'primary' : 'muted'}">${escapeHtml(r.type)}</span>
-          <span style="font-family:monospace;font-size:13px;width:70px;flex-shrink:0;">${escapeHtml(r.name)}</span>
-          <span style="font-family:monospace;font-size:13px;color:var(--ink-soft);flex:1;overflow-wrap:${DNS_HOST_TYPES.includes(r.type) ? 'break-word' : 'anywhere'};">${escapeHtml(r.data)}${r.priority != null ? ` <span style="color:#8A8377;">(priority ${r.priority})</span>` : ''}</span>
-          <span style="font-size:12px;color:#8A8377;flex-shrink:0;white-space:nowrap;">TTL ${r.ttl}</span>
+        <div class="hosting-row" style="flex-direction:column;align-items:stretch;gap:6px;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <span class="hosting-dns-type ${primaryTypes.includes(r.type) ? 'primary' : 'muted'}">${escapeHtml(r.type)}</span>
+            <span class="hosting-mono" style="font-weight:600;color:var(--ink);">${escapeHtml(r.name)}</span>
+          </div>
+          <div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px 16px;">
+            <span class="hosting-mono" style="color:var(--ink-soft);overflow-wrap:anywhere;">${escapeHtml(r.data)}${r.priority != null ? ` <span style="color:#8A8377;">(priority ${r.priority})</span>` : ''}</span>
+            <span style="font-size:11.5px;color:#8A8377;white-space:nowrap;">TTL ${r.ttl}</span>
+          </div>
         </div>
       `).join('')}
     </div>

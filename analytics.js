@@ -22,6 +22,19 @@ const CHART_GRID_COLOR = '#E5E1D8';   // --line, one step off the card surface �
 const CHART_TICK_COLOR = '#8A8377';   // muted ink, matches .empty-state / label tone elsewhere in the app
 const CHART_AXIS_LABEL_COLOR = '#475569'; // --ink-soft
 
+let _chartFontApplied = false;
+// Chart.js defaults to a generic system sans — mismatched against the
+// rest of the (Inter-set) UI and a big part of why the charts read as
+// dated. One global override covers every chart's ticks/legend/tooltip.
+// Chart.js loads with `defer` but this file doesn't, so it can't safely
+// touch Chart.defaults at module-load time (Chart may not exist yet) —
+// applied once, lazily, the first time a chart actually renders instead.
+function applyChartFontDefaultsOnce() {
+  if (_chartFontApplied || typeof Chart === 'undefined') return;
+  Chart.defaults.font.family = "'Inter', -apple-system, sans-serif";
+  _chartFontApplied = true;
+}
+
 async function loadCustomerAnalyticsTab(customerId) {
   const bodyEl = document.getElementById('analytics-body');
   if (!bodyEl) return;
@@ -32,6 +45,7 @@ async function loadCustomerAnalyticsTab(customerId) {
     bodyEl.innerHTML = '<div class="empty-state">Charting library failed to load — check your connection and reload.</div>';
     return;
   }
+  applyChartFontDefaultsOnce();
 
   const { data: { session } } = await sb.auth.getSession();
   let result;
@@ -97,6 +111,20 @@ const TOOLTIP_STYLE = {
   boxPadding: 4,
 };
 
+// A flat, solid area fill under a line reads as dated; a soft vertical fade
+// is the current convention (Stripe/Linear-style dashboards). Scriptable
+// Chart.js option — re-evaluated once the real chart area is known.
+function verticalFadeFill(colorHex) {
+  return (ctx) => {
+    const area = ctx.chart.chartArea;
+    if (!area) return hexToRgba(colorHex, 0.16);
+    const gradient = ctx.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+    gradient.addColorStop(0, hexToRgba(colorHex, 0.24));
+    gradient.addColorStop(1, hexToRgba(colorHex, 0));
+    return gradient;
+  };
+}
+
 function renderTrendChart(rows) {
   const canvasId = 'analytics-chart-trend';
   const canvas = document.getElementById(canvasId);
@@ -110,16 +138,16 @@ function renderTrendChart(rows) {
       datasets: [
         {
           label: 'Visitors', data: rows.map(r => r.visitors),
-          borderColor: ANALYTICS_LINE_COLOR, backgroundColor: hexToRgba(ANALYTICS_LINE_COLOR, 0.1),
-          borderWidth: 2, fill: true, tension: 0.3,
-          pointRadius: 4, pointHoverRadius: 5,
+          borderColor: ANALYTICS_LINE_COLOR, backgroundColor: verticalFadeFill(ANALYTICS_LINE_COLOR),
+          borderWidth: 2.5, fill: true, tension: 0.35,
+          pointRadius: 0, pointHoverRadius: 5, pointHitRadius: 12,
           pointBackgroundColor: ANALYTICS_LINE_COLOR, pointBorderColor: '#fff', pointBorderWidth: 2,
         },
         {
           label: 'Page Views', data: rows.map(r => r.pageviews),
-          borderColor: ANALYTICS_LINE_COLOR_2, backgroundColor: hexToRgba(ANALYTICS_LINE_COLOR_2, 0.1),
-          borderWidth: 2, fill: true, tension: 0.3,
-          pointRadius: 4, pointHoverRadius: 5,
+          borderColor: ANALYTICS_LINE_COLOR_2, backgroundColor: verticalFadeFill(ANALYTICS_LINE_COLOR_2),
+          borderWidth: 2.5, fill: true, tension: 0.35,
+          pointRadius: 0, pointHoverRadius: 5, pointHitRadius: 12,
           pointBackgroundColor: ANALYTICS_LINE_COLOR_2, pointBorderColor: '#fff', pointBorderWidth: 2,
         },
       ],
@@ -156,9 +184,10 @@ function renderBarChart(canvasId, rows) {
       datasets: [{
         label: 'Visitors', data: rows.map(r => r.value),
         backgroundColor: ANALYTICS_LINE_COLOR,
-        borderRadius: { topLeft: 0, bottomLeft: 0, topRight: 4, bottomRight: 4 },
+        borderRadius: { topLeft: 4, bottomLeft: 4, topRight: 4, bottomRight: 4 },
         borderSkipped: false,
-        maxBarThickness: 22,
+        maxBarThickness: 18,
+        categoryPercentage: 0.7,
       }],
     },
     options: {
@@ -178,6 +207,33 @@ function renderBarChart(canvasId, rows) {
   });
 }
 
+// Draws the series total in the doughnut's hole — the signature modern-donut
+// touch that also gives the number somewhere to live now that the ring
+// itself carries no labels. Registered per-chart (not globally) so it never
+// touches the line/bar charts.
+function doughnutCenterTextPlugin(totalLabel) {
+  return {
+    id: 'centerText',
+    beforeDraw(chart) {
+      const { ctx, chartArea } = chart;
+      if (!chartArea) return;
+      const total = chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+      const cx = (chartArea.left + chartArea.right) / 2;
+      const cy = (chartArea.top + chartArea.bottom) / 2;
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = '#1C2622';
+      ctx.font = "600 22px 'Fraunces', serif";
+      ctx.fillText(total.toLocaleString(), cx, cy - 9);
+      ctx.fillStyle = '#8A8377';
+      ctx.font = "600 10px 'Inter', sans-serif";
+      ctx.fillText(totalLabel, cx, cy + 12);
+      ctx.restore();
+    },
+  };
+}
+
 function renderDoughnutChart(canvasId, rowsIn) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
@@ -191,17 +247,21 @@ function renderDoughnutChart(canvasId, rowsIn) {
       datasets: [{
         data: rows.map(r => r.value),
         backgroundColor: rows.map((_, i) => ANALYTICS_PALETTE[i]),
-        borderColor: '#fff', borderWidth: 2, // surface ring — separates adjacent slices, not a data-weight stroke
-        hoverOffset: 4,
+        borderWidth: 0,
+        spacing: 3,       // gap between slices instead of a border stroke
+        borderRadius: 6,  // rounded slice ends — the main "looks modern" lever
+        hoverOffset: 6,
       }],
     },
     options: {
       responsive: true, maintainAspectRatio: false,
+      cutout: '72%',
       plugins: {
         legend: { position: 'right', labels: { boxWidth: 10, usePointStyle: true, pointStyle: 'circle', color: CHART_AXIS_LABEL_COLOR, font: { size: 11.5 } } },
         tooltip: TOOLTIP_STYLE,
       },
     },
+    plugins: [doughnutCenterTextPlugin('VISITORS')],
   });
 }
 

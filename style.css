@@ -303,7 +303,6 @@
       font-family: 'Fraunces', serif; font-weight: 600; font-size: 17px;
       color: var(--ink); margin: 36px 0 14px;
     }
-    .hosting-section-label:first-of-type { margin-top: 0; }
     .hosting-lede { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 20px; max-width: 560px; line-height: 1.6; }
 
     .hosting-list { border-top: 1px solid var(--line); }

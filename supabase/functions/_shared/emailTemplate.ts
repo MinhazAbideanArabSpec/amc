@@ -70,7 +70,7 @@ export function renderAlertEmailHtml(data: AlertEmailData): string {
               <td style="padding-right:10px;">
                 <img src="${LOGO_URL}" alt="ArabSpec" height="32" style="display:block;border-radius:5px;background:#fff;padding:4px 6px;"/>
               </td>
-              <td style="color:#ffffff;font-size:16px;font-weight:600;vertical-align:middle;">ArabSpec AMC Portal</td>
+              <td style="color:#ffffff;font-size:16px;font-weight:600;vertical-align:middle;">ArabSpec Orbit Portal</td>
             </tr></table>
           </td>
         </tr>
@@ -107,7 +107,7 @@ export function renderAlertEmailHtml(data: AlertEmailData): string {
         </tr>
         <tr>
           <td style="background:#F8FAFC;padding:16px 28px;border-top:1px solid ${LINE};">
-            <p style="margin:0;font-size:11px;color:${MUTED};">ArabSpec AMC Portal — Automated notification. Please do not reply directly to this email.</p>
+            <p style="margin:0;font-size:11px;color:${MUTED};">ArabSpec Orbit Portal — Automated notification. Please do not reply directly to this email.</p>
           </td>
         </tr>
       </table>
@@ -119,7 +119,7 @@ export function renderAlertEmailHtml(data: AlertEmailData): string {
 
 export function renderAlertEmailText(data: AlertEmailData): string {
   const typeLabel = data.type === 'contract' ? 'Contract' : 'Software Renewal';
-  return `${data.isTest ? '[TEST EMAIL — no action needed]\n\n' : ''}${typeLabel} Expiring: ${data.itemName}\nCustomer: ${data.customerName}${data.vendor ? `\nVendor: ${data.vendor}` : ''}\nExpiry Date: ${fmtDate(data.expiryDate)}\nDays Remaining: ${data.daysLeft}\n\nPlease reach out to your ArabSpec account contact if you'd like to discuss renewal options.\n\n— ArabSpec AMC Portal`;
+  return `${data.isTest ? '[TEST EMAIL — no action needed]\n\n' : ''}${typeLabel} Expiring: ${data.itemName}\nCustomer: ${data.customerName}${data.vendor ? `\nVendor: ${data.vendor}` : ''}\nExpiry Date: ${fmtDate(data.expiryDate)}\nDays Remaining: ${data.daysLeft}\n\nPlease reach out to your ArabSpec account contact if you'd like to discuss renewal options.\n\n— ArabSpec Orbit Portal`;
 }
 
 export function renderAlertSubject(data: AlertEmailData): string {

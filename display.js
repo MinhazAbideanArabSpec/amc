@@ -20,7 +20,7 @@ var _pages = [];      // [{ section:'renewal'|'visit', items:[...] }, ...]
 var _pageIndex = 0;
 
 const SECTION_META = {
-  renewal: { title: 'Expiring & Expired Renewals', subtitle: `ArabSpec AMC Portal — Office Display · updates automatically` },
+  renewal: { title: 'Expiring & Expired Renewals', subtitle: `ArabSpec Orbit Portal — Office Display · updates automatically` },
   visit:   { title: 'Upcoming AMC Site Visits',     subtitle: `Scheduled maintenance visits — next ${VISIT_THRESHOLD_DAYS} days, plus any active AMC company with no visit set this month` },
 };
 

@@ -1,4 +1,4 @@
-// pdf.js — ArabSpec AMC Portal PDF Generation
+// pdf.js — ArabSpec Orbit Portal PDF Generation
 
 const PDF_ACCENT = [2, 84, 48];
 const PDF_DARK   = [28, 38, 34];
@@ -100,7 +100,7 @@ function pdfBrandBar(doc, rightText) {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.setTextColor(255, 255, 255);
-  doc.text('ArabSpec AMC Portal', 14, 9);
+  doc.text('ArabSpec Orbit Portal', 14, 9);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(7.5);
   doc.text(rightText || '', pw - 14, 9, { align: 'right' });

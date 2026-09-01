@@ -65,7 +65,7 @@ var TRANSLATIONS = {
     visit_last: 'Last Visit',
     visit_next: 'Next Scheduled',
     // Hero
-    hero_sub: 'ArabSpec AMC Portal — Service & Contract Management',
+    hero_sub: 'ArabSpec Orbit Portal — Service & Contract Management',
     // Status labels
     status_critical: 'Critical', status_warning: 'Warning', status_pass: 'Pass',
     no_active_status: 'No Active Status',
@@ -153,7 +153,7 @@ var TRANSLATIONS = {
     visit_last: 'آخر زيارة',
     visit_next: 'الزيارة القادمة',
     // Hero
-    hero_sub: 'بوابة ArabSpec للصيانة — إدارة الخدمات والعقود',
+    hero_sub: 'بوابة ArabSpec Orbit — إدارة الخدمات والعقود',
     // Status labels
     status_critical: 'حرج', status_warning: 'تحذير', status_pass: 'ناجح',
     no_active_status: 'لا توجد حالة نشطة',

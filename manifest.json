@@ -1,7 +1,7 @@
 {
-  "name": "ArabSpec AMC Portal",
-  "short_name": "AMC Portal",
-  "description": "AMC service, contract, and asset management portal.",
+  "name": "ArabSpec Orbit Portal",
+  "short_name": "Orbit Portal",
+  "description": "Service, contract, and asset management portal.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

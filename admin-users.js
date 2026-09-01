@@ -12,11 +12,28 @@ async function loadClientsList() {
 
   if (error) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">Error: ${error.message}</td></tr>`; return; }
 
-  const { data: allStaff } = await sb.from('profiles').select('customer_id').not('customer_id', 'is', null);
+  const { data: allStaff } = await sb.from('profiles').select('customer_id, last_login_at').not('customer_id', 'is', null);
   const staffCount = {};
-  (allStaff || []).forEach(s => { staffCount[s.customer_id] = (staffCount[s.customer_id] || 0) + 1; });
+  const staffLastLogin = {}; // customer_id -> most recent last_login_at among that client's staff accounts
+  (allStaff || []).forEach(s => {
+    staffCount[s.customer_id] = (staffCount[s.customer_id] || 0) + 1;
+    if (s.last_login_at && (!staffLastLogin[s.customer_id] || s.last_login_at > staffLastLogin[s.customer_id])) {
+      staffLastLogin[s.customer_id] = s.last_login_at;
+    }
+  });
 
-  _clientsData = (clients || []).map(u => ({ ...u, _staffCount: staffCount[u.id] || 0 }));
+  // "Last Login" for a client company means the most recent sign-in by
+  // *anyone* on that account — the main login or any of its staff — not
+  // just the root profile's own last_login_at, which could sit stale for
+  // months while staff sign in and use the portal daily. ISO 8601 strings
+  // compare correctly with plain `>`, no Date parsing needed.
+  _clientsData = (clients || []).map(u => {
+    const staffLatest = staffLastLogin[u.id];
+    const lastLoginAny = !u.last_login_at ? staffLatest
+      : !staffLatest ? u.last_login_at
+      : (u.last_login_at > staffLatest ? u.last_login_at : staffLatest);
+    return { ...u, _staffCount: staffCount[u.id] || 0, _lastLoginAny: lastLoginAny };
+  });
   renderClientsTable();
 }
 
@@ -39,7 +56,7 @@ function renderClientsTable() {
       <td style="font-weight:600;">${u.name}${u.access_level === 'hosting' ? ' <span class="badge" style="background:#FEF3C7;color:#92400E;">Hosting Only</span>' : ''}</td>
       <td>${u.email}</td>
       <td><span class="badge ${u.is_active ? 'active' : 'inactive'}">${u.is_active ? 'Active' : 'Inactive'}</span></td>
-      <td style="font-size:12.5px;color:#64748B;">${fmtDateTime(u.last_login_at)}</td>
+      <td style="font-size:12.5px;color:#64748B;">${fmtDateTime(u._lastLoginAny)}</td>
       <td>
         <div class="row-actions">
           <button class="secondary" onclick="openEditModal('${u.id}')">Edit</button>

@@ -1,7 +1,7 @@
 // vercel-analytics — read-only. Queries Vercel's Web Analytics API for
 // the caller's connected site: headline visitors/pageviews, the daily
 // trend, and breakdowns by page, referrer, country, device, and browser
-// — everything the "Visits" dataset exposes — over the last 7 days.
+// — everything the "Visits" dataset exposes — over the last 30 days.
 // Uses the shared Vercel access token from app_secrets and the
 // per-customer vercel_project_id/vercel_team_id on customer_sites.
 //
@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     if (site.vercel_team_id) baseParams.set('teamId', site.vercel_team_id);
 
     const until = new Date();
-    const since = new Date(until.getTime() - 7 * 86400000);
+    const since = new Date(until.getTime() - 30 * 86400000);
     const dateParams = new URLSearchParams(baseParams);
     dateParams.set('since', since.toISOString().split('T')[0]);
     dateParams.set('until', until.toISOString().split('T')[0]);

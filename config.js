@@ -231,8 +231,6 @@ async function loadSettingsStatus() {
   }
 
   maskField(document.getElementById('github-token-input'), data.githubTokenLength);
-  maskField(document.getElementById('vercel-token-input'), data.vercelTokenLength);
-  maskField(document.getElementById('godaddy-token-input'), data.godaddyTokenLength);
 }
 
 async function saveAlertThresholds() {
@@ -295,60 +293,6 @@ async function saveGithubToken() {
   } else {
     statusEl.style.color = 'var(--sage)';
     statusEl.textContent = 'GitHub token saved.';
-    if (token) maskField(input, token.length);
-    else input.value = input.dataset.placeholder || '';
-  }
-}
-
-async function saveGodaddyToken() {
-  const input = document.getElementById('godaddy-token-input');
-  const token = maskedFieldValue(input).trim();
-  const statusEl = document.getElementById('godaddy-token-status');
-  const btn = document.getElementById('godaddy-token-save-btn');
-
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  statusEl.style.display = 'none';
-
-  const { data, error } = await sb.functions.invoke('save-godaddy-token', { body: { token } });
-
-  btn.disabled = false;
-  btn.textContent = 'Save Token';
-
-  statusEl.style.display = 'block';
-  if (error || data?.error) {
-    statusEl.style.color = 'var(--rust)';
-    statusEl.textContent = 'Failed to save: ' + await extractFunctionErrorMessage(error, data);
-  } else {
-    statusEl.style.color = 'var(--sage)';
-    statusEl.textContent = 'GoDaddy token saved.';
-    if (token) maskField(input, token.length);
-    else input.value = input.dataset.placeholder || '';
-  }
-}
-
-async function saveVercelToken() {
-  const input = document.getElementById('vercel-token-input');
-  const token = maskedFieldValue(input).trim();
-  const statusEl = document.getElementById('vercel-token-status');
-  const btn = document.getElementById('vercel-token-save-btn');
-
-  btn.disabled = true;
-  btn.textContent = 'Saving…';
-  statusEl.style.display = 'none';
-
-  const { data, error } = await sb.functions.invoke('save-vercel-token', { body: { token } });
-
-  btn.disabled = false;
-  btn.textContent = 'Save Token';
-
-  statusEl.style.display = 'block';
-  if (error || data?.error) {
-    statusEl.style.color = 'var(--rust)';
-    statusEl.textContent = 'Failed to save: ' + await extractFunctionErrorMessage(error, data);
-  } else {
-    statusEl.style.color = 'var(--sage)';
-    statusEl.textContent = 'Vercel token saved.';
     if (token) maskField(input, token.length);
     else input.value = input.dataset.placeholder || '';
   }

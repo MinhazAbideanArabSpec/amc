@@ -277,25 +277,13 @@
       }
       .nav-tab { white-space: nowrap; border-left: none; border-bottom: 3px solid transparent; }
       .nav-tab.active { border-left-color: transparent; border-bottom-color: var(--accent); }
-      .nav-subtabs.expanded { flex-direction: row; margin: 0; padding-left: 0; border-left: none; }
-      .nav-subtab { white-space: nowrap; }
     }
 
-    /* ── Hosting tab redesign (Website / Analytics / Domains) — scoped to this
-       tab only; pilot for a broader modern-look pass across the rest of the
-       app. Moves subtab switching from the cramped sidebar nested list into
-       a bold in-content tab bar, and drops the boxy bordered .card look in
-       favor of Fraunces section headers + hairline-separated rows. ── */
-    .hosting-tabbar { display: flex; gap: 12px; margin-bottom: 32px; border-bottom: 1px solid var(--line); }
-    .hosting-tab {
-      background: transparent; border: none; border-bottom: 2px solid transparent;
-      padding: 8px 10px 14px; font-size: 14.5px; font-weight: 600; cursor: pointer;
-      color: #8A8377; font-family: inherit; border-radius: 6px 6px 0 0;
-      transition: color 0.15s ease, background-color 0.15s ease;
-    }
-    .hosting-tab.active { color: var(--accent); border-bottom-color: var(--accent); background: transparent; }
-    .hosting-tab:not(.active):hover { color: var(--ink); background: rgba(28,38,34,0.05); }
-
+    /* ── Hosting tab (Website only — Vercel Analytics and GoDaddy DNS
+       integrations removed; a future Cloudflare-based version may bring
+       sub-tabs back). Fraunces section headers + hairline-separated rows,
+       no boxy bordered .card look — part of the broader modern-look pass
+       started here. ── */
     .hosting-page-title {
       font-family: 'Fraunces', serif; font-weight: 600; font-size: 30px;
       color: var(--ink); margin: 0 0 6px; letter-spacing: -0.01em;
@@ -309,31 +297,6 @@
     .hosting-list { border-top: 1px solid var(--line); }
     .hosting-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 4px; border-bottom: 1px solid var(--line); }
     .hosting-row:last-child { border-bottom: none; }
-
-    .hosting-stat-row { display: flex; gap: 56px; margin: 8px 0 8px; }
-    .hosting-stat-num { font-family: 'Fraunces', serif; font-weight: 600; font-size: 38px; color: var(--ink); line-height: 1; font-variant-numeric: tabular-nums; }
-    .hosting-stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #8A8377; font-weight: 600; margin-top: 6px; }
-
-    .hosting-chart-block { margin-bottom: 8px; }
-    .hosting-dns-type { font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 3px; letter-spacing: 0.02em; flex-shrink: 0; }
-    .hosting-dns-type.primary { color: var(--accent); background: var(--sage-bg); }
-    .hosting-dns-type.muted { color: #8A8377; background: #F1EFE8; }
-    .hosting-mono { font-family: 'IBM Plex Mono', 'SF Mono', Consolas, monospace; font-size: 13px; }
-
-    /* ── Sidebar sub-nav (nested items under a parent tab, e.g. Hosting → Website/Analytics) ── */
-    .nav-subtabs {
-      display: none; flex-direction: column; gap: 2px;
-      margin: 2px 0 4px 21px; padding-left: 12px;
-      border-left: 1px solid rgba(255,255,255,0.1);
-    }
-    .nav-subtabs.expanded { display: flex; }
-    .nav-subtab {
-      text-align: left; padding: 10px 14px; font-size: 12.5px; font-weight: 600;
-      color: #9CA3AF; background: transparent; border: none; border-radius: 6px; cursor: pointer;
-    }
-    .nav-subtab.active { color: #fff; background: rgba(255,255,255,0.08); }
-    .nav-subtab:not(.active):hover { color: #E5E7EB; background: rgba(255,255,255,0.05); }
-    .rtl .nav-subtabs { margin: 2px 21px 4px 0; padding-left: 0; padding-right: 12px; border-left: none; border-right: 1px solid rgba(255,255,255,0.1); text-align: right; }
 
     /* ── Contract card (customer view) ── */
     .contract-block { border: 1px solid var(--line); border-radius: 4px; padding: 16px 20px; margin-bottom: 12px; }

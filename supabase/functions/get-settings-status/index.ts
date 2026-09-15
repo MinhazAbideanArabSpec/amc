@@ -55,8 +55,6 @@ Deno.serve(async (req) => {
         passwordLength: (cfg.smtp_password || '').length,
       },
       githubTokenLength: (cfg.github_token || '').length,
-      vercelTokenLength: (cfg.vercel_token || '').length,
-      godaddyTokenLength: (cfg.godaddy_pat || '').length,
     }), { headers: corsHeaders });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });

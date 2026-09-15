@@ -231,6 +231,11 @@ async function loadSettingsStatus() {
   }
 
   maskField(document.getElementById('github-token-input'), data.githubTokenLength);
+
+  if (data.cloudflare) {
+    document.getElementById('cloudflare-account-id-input').value = data.cloudflare.accountId || '';
+    maskField(document.getElementById('cloudflare-token-input'), data.cloudflare.apiTokenLength);
+  }
 }
 
 async function saveAlertThresholds() {
@@ -293,6 +298,34 @@ async function saveGithubToken() {
   } else {
     statusEl.style.color = 'var(--sage)';
     statusEl.textContent = 'GitHub token saved.';
+    if (token) maskField(input, token.length);
+    else input.value = input.dataset.placeholder || '';
+  }
+}
+
+async function saveCloudflareCredentials() {
+  const accountId = document.getElementById('cloudflare-account-id-input').value.trim();
+  const input = document.getElementById('cloudflare-token-input');
+  const token = maskedFieldValue(input).trim();
+  const statusEl = document.getElementById('cloudflare-status');
+  const btn = document.getElementById('cloudflare-save-btn');
+
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+  statusEl.style.display = 'none';
+
+  const { data, error } = await sb.functions.invoke('save-cloudflare-credentials', { body: { accountId, token } });
+
+  btn.disabled = false;
+  btn.textContent = 'Save';
+
+  statusEl.style.display = 'block';
+  if (error || data?.error) {
+    statusEl.style.color = 'var(--rust)';
+    statusEl.textContent = 'Failed to save: ' + await extractFunctionErrorMessage(error, data);
+  } else {
+    statusEl.style.color = 'var(--sage)';
+    statusEl.textContent = 'Cloudflare credentials saved.';
     if (token) maskField(input, token.length);
     else input.value = input.dataset.placeholder || '';
   }

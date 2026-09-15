@@ -566,11 +566,15 @@ async function openWebsiteModal(customerId, customerName) {
   document.getElementById('website-modal-error').style.display = 'none';
   document.getElementById('website-repo-input').value = '';
   document.getElementById('website-branch-input').value = 'main';
+  document.getElementById('website-cf-zone-input').value = '';
+  document.getElementById('website-cf-site-tag-input').value = '';
 
-  const { data: site } = await sb.from('customer_sites').select('repo, branch').eq('customer_id', customerId).single();
+  const { data: site } = await sb.from('customer_sites').select('repo, branch, cloudflare_zone_id, cloudflare_site_tag').eq('customer_id', customerId).single();
   if (site) {
     document.getElementById('website-repo-input').value = site.repo;
     document.getElementById('website-branch-input').value = site.branch;
+    document.getElementById('website-cf-zone-input').value = site.cloudflare_zone_id || '';
+    document.getElementById('website-cf-site-tag-input').value = site.cloudflare_site_tag || '';
   }
 
   document.getElementById('website-modal-overlay').classList.add('open');
@@ -583,6 +587,8 @@ function closeWebsiteModal() {
 async function saveWebsiteConfig() {
   const repo = document.getElementById('website-repo-input').value.trim();
   const branch = document.getElementById('website-branch-input').value.trim() || 'main';
+  const cloudflare_zone_id = document.getElementById('website-cf-zone-input').value.trim() || null;
+  const cloudflare_site_tag = document.getElementById('website-cf-site-tag-input').value.trim() || null;
   const errEl = document.getElementById('website-modal-error');
   const btn = document.getElementById('website-save-btn');
   errEl.style.display = 'none';
@@ -595,7 +601,7 @@ async function saveWebsiteConfig() {
 
   btn.disabled = true; btn.textContent = 'Saving…';
   const { error } = await sb.from('customer_sites').upsert({
-    customer_id: _websiteCustomerId, repo, branch,
+    customer_id: _websiteCustomerId, repo, branch, cloudflare_zone_id, cloudflare_site_tag,
   }, { onConflict: 'customer_id' });
   btn.disabled = false; btn.textContent = 'Save';
 

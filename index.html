@@ -514,6 +514,21 @@
           <div id="db-backup-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
         </div>
 
+        <div class="card">
+          <div class="card-header">
+            <h2>☁️ Cloudflare</h2>
+          </div>
+          <div style="font-size:12px;color:#94A3B8;margin-bottom:12px;">
+            Lets clients see their domain's DNS records and visitor analytics from their own Hosting tab. Set these once, then connect each client's zone ID and site tag from Clients → Website. Requires the server-side setup in <code>supabase/CLOUDFLARE_SETUP.md</code> to be completed once.
+          </div>
+          <label>Account ID</label>
+          <input type="text" id="cloudflare-account-id-input" placeholder="Cloudflare Account ID"/>
+          <label>API Token</label>
+          <input type="password" id="cloudflare-token-input" placeholder="Scoped to DNS Read + Account Analytics Read" onfocus="clearMaskedFieldOnFocus(this)"/>
+          <button class="secondary" onclick="saveCloudflareCredentials()" id="cloudflare-save-btn">Save</button>
+          <div id="cloudflare-status" style="font-size:12.5px;margin-top:8px;display:none;"></div>
+        </div>
+
       </div>
 
       <!-- SMTP panel -->
@@ -1004,10 +1019,75 @@
         </div>
       </div>
 
-      <!-- Hosting panel (Website only — Analytics/Domains removed with the Vercel/GoDaddy integrations; a future Cloudflare-based version may reintroduce sub-tabs here) -->
+      <!-- Hosting panel (Website / Analytics / Domains sub-tabs — Analytics and Domains are backed by Cloudflare) -->
       <div id="cust-panel-hosting" style="display:none;">
-        <h1 class="hosting-page-title">Your website</h1>
-        <div id="customer-website-body"><div class="empty-state">Loading…</div></div>
+        <div class="hosting-tabbar">
+          <button class="hosting-tab active" id="hosting-subtab-website" onclick="switchHostingSubTab('website')">Website</button>
+          <button class="hosting-tab" id="hosting-subtab-analytics" onclick="switchHostingSubTab('analytics')">Analytics</button>
+          <button class="hosting-tab" id="hosting-subtab-domains" onclick="switchHostingSubTab('domains')">Domains</button>
+        </div>
+
+        <div id="hosting-section-website">
+          <h1 class="hosting-page-title">Your website</h1>
+          <div id="customer-website-body"><div class="empty-state">Loading…</div></div>
+        </div>
+
+        <div id="hosting-section-analytics" style="display:none;">
+          <h1 class="hosting-page-title">Analytics</h1>
+          <div id="analytics-body"><div class="empty-state">Loading…</div></div>
+          <template id="analytics-template">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;">
+              <div class="hosting-stat-row">
+                <div><div class="hosting-stat-num" id="analytics-visitors">—</div><div class="hosting-stat-label">Visitors</div></div>
+                <div><div class="hosting-stat-num" id="analytics-pageviews">—</div><div class="hosting-stat-label">Page views</div></div>
+              </div>
+              <span id="analytics-date-range" style="font-size:12.5px;color:#8A8377;"></span>
+            </div>
+
+            <div class="hosting-chart-block">
+              <div class="hosting-section-label">Visitors over time</div>
+              <div style="height:240px;"><canvas id="analytics-chart-trend"></canvas></div>
+            </div>
+
+            <div class="dash-row">
+              <div class="hosting-chart-block">
+                <div class="hosting-section-label">Top pages</div>
+                <div style="height:220px;"><canvas id="analytics-chart-pages"></canvas></div>
+              </div>
+              <div class="hosting-chart-block">
+                <div class="hosting-section-label">Top referrers</div>
+                <div style="height:220px;"><canvas id="analytics-chart-referrers"></canvas></div>
+              </div>
+            </div>
+
+            <div class="dash-row">
+              <div class="hosting-chart-block">
+                <div class="hosting-section-label">Countries</div>
+                <div style="height:220px;"><canvas id="analytics-chart-countries"></canvas></div>
+              </div>
+              <div class="hosting-chart-block">
+                <div class="hosting-section-label">Devices</div>
+                <div style="height:220px;"><canvas id="analytics-chart-devices"></canvas></div>
+              </div>
+            </div>
+
+            <div class="dash-row">
+              <div class="hosting-chart-block">
+                <div class="hosting-section-label">Browsers</div>
+                <div style="height:220px;"><canvas id="analytics-chart-browsers"></canvas></div>
+              </div>
+              <div class="hosting-chart-block" id="analytics-os-card">
+                <div class="hosting-section-label">Operating systems</div>
+                <div style="height:220px;"><canvas id="analytics-chart-os"></canvas></div>
+              </div>
+            </div>
+          </template>
+        </div>
+
+        <div id="hosting-section-domains" style="display:none;">
+          <h1 class="hosting-page-title">Domains</h1>
+          <div id="domains-body"><div class="empty-state">Loading…</div></div>
+        </div>
       </div>
 
       <!-- Tickets panel -->
@@ -1337,6 +1417,12 @@
     <input type="text" id="website-repo-input" placeholder="arabspec/client-site"/>
     <label>Branch</label>
     <input type="text" id="website-branch-input" placeholder="main" value="main"/>
+    <div style="font-size:11px;color:#94A3B8;margin:2px 0 10px;">Optional — lets this client view DNS records from their own Hosting → Domains tab.</div>
+    <label>Cloudflare Zone ID</label>
+    <input type="text" id="website-cf-zone-input" placeholder="Zone ID from the domain's Cloudflare Overview page"/>
+    <div style="font-size:11px;color:#94A3B8;margin:2px 0 10px;">Optional — lets this client see visitor stats from their own Hosting → Analytics tab. Requires Web Analytics enabled and the beacon snippet published for this site (see CLOUDFLARE_SETUP.md).</div>
+    <label>Cloudflare Site Tag</label>
+    <input type="text" id="website-cf-site-tag-input" placeholder="From the Web Analytics beacon snippet"/>
     <div id="website-modal-error" style="color:var(--rust);background:var(--rust-bg);border-radius:3px;
       padding:8px 12px;font-size:13px;margin-bottom:10px;display:none;"></div>
     <div class="modal-actions">
@@ -1609,6 +1695,8 @@
   <script src="visits.js"></script>
   <script src="customer-dashboard.js"></script>
   <script src="customer.js"></script>
+  <script src="analytics.js"></script>
+  <script src="dns.js"></script>
   <script src="pdf.js"></script>
   <script src="subscriptions.js"></script>
   <script src="tags.js"></script>

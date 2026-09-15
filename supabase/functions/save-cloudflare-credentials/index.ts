@@ -1,16 +1,13 @@
-// get-settings-status — admin-only. Reports non-secret config values as-is,
-// and secret values as a character COUNT only (never the value itself), so
-// the client can pre-fill masked fields with the right number of dots
-// instead of looking empty every time the page loads. app_secrets has zero
-// client-facing RLS policies, so this is the only way the Settings UI can
-// know any of this.
+// save-cloudflare-credentials — admin-only. Stores the shared Cloudflare
+// API token + account ID in the locked-down app_secrets table (no RLS
+// policies granted to anon/authenticated, so only this function's
+// service-role client can ever read them back).
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Content-Type': 'application/json',
 };
 
 Deno.serve(async (req) => {
@@ -42,21 +39,27 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Admin access required' }), { status: 403, headers: corsHeaders });
     }
 
-    const { data: secrets } = await admin.from('app_secrets').select('key, value');
-    const cfg: Record<string, string> = {};
-    (secrets || []).forEach((s: { key: string; value: string }) => { cfg[s.key] = s.value; });
+    const { accountId, token } = await req.json();
+    if (!accountId) {
+      return new Response(JSON.stringify({ error: 'Account ID is required' }), { status: 400, headers: corsHeaders });
+    }
+    if (!token) {
+      const { data: existing } = await admin.from('app_secrets').select('value').eq('key', 'cloudflare_api_token').single();
+      if (!existing?.value) {
+        return new Response(JSON.stringify({ error: 'An API token is required the first time Cloudflare is configured.' }), { status: 400, headers: corsHeaders });
+      }
+    }
 
-    return new Response(JSON.stringify({
-      smtp: {
-        host: cfg.smtp_host || '',
-        port: cfg.smtp_port || '',
-        username: cfg.smtp_username || '',
-        secure: cfg.smtp_secure === 'true',
-        passwordLength: (cfg.smtp_password || '').length,
-      },
-      githubTokenLength: (cfg.github_token || '').length,
-      cloudflare: { accountId: cfg.cloudflare_account_id || '', apiTokenLength: (cfg.cloudflare_api_token || '').length },
-    }), { headers: corsHeaders });
+    const entries: [string, string][] = [['cloudflare_account_id', String(accountId)]];
+    // Only overwrite the saved token if a new one was actually entered —
+    // leaving the field blank means "keep what's already there."
+    if (token) entries.push(['cloudflare_api_token', String(token)]);
+    for (const [key, value] of entries) {
+      const { error } = await admin.from('app_secrets').upsert({ key, value, updated_at: new Date().toISOString() });
+      if (error) throw error;
+    }
+
+    return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders });
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), { status: 500, headers: corsHeaders });
   }
